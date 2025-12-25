@@ -1,11 +1,5 @@
 pluginManagement {
     repositories {
-        // Mirrors for restricted networks
-        maven { url "https://maven.aliyun.com/repository/gradle-plugin" }
-        maven { url "https://maven.aliyun.com/repository/google" }
-        maven { url "https://maven.aliyun.com/repository/central" }
-
-        // Primary repositories
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -15,15 +9,10 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // Mirrors
-        maven { url "https://maven.aliyun.com/repository/google" }
-        maven { url "https://maven.aliyun.com/repository/central" }
-
-        // Primary repositories
         google()
         mavenCentral()
     }
 }
 
 rootProject.name = "vinor-webview-android"
-include(":app")
+include ':app'
