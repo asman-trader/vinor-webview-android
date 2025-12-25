@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -69,13 +70,29 @@ class MainActivity : AppCompatActivity() {
         SmsRetriever.getClient(this).startSmsUserConsent(null)
     }
 
+    private var isSmsReceiverRegistered: Boolean = false
+
     override fun onStart() {
         super.onStart()
-        registerReceiver(smsBroadcastReceiver, IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION))
+        val filter = IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION)
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(smsBroadcastReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(smsBroadcastReceiver, filter)
+        }
+        isSmsReceiverRegistered = true
     }
 
     override fun onStop() {
-        unregisterReceiver(smsBroadcastReceiver)
+        if (isSmsReceiverRegistered) {
+            try {
+                unregisterReceiver(smsBroadcastReceiver)
+            } catch (_: IllegalArgumentException) {
+                // Receiver already unregistered; ignore
+            }
+            isSmsReceiverRegistered = false
+        }
         super.onStop()
     }
 
