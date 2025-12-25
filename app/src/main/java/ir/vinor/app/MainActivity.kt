@@ -1,17 +1,60 @@
 package ir.vinor.app
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import com.google.android.gms.auth.api.phone.SmsRetriever
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.common.api.Status
 import ir.vinor.app.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val targetUrl = "https://vinor.ir"
+
+    private val smsConsentResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data: Intent? = result.data
+        val message = data?.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE) ?: return@registerForActivityResult
+        // Try to extract a 4-8 digit code from the SMS text
+        val code = Regex("""\b(\d{4,8})\b""").find(message)?.value
+        // For now, just inject the code into the page if there is a handler (adjust selector if needed)
+        code?.let {
+            binding.webView.post {
+                binding.webView.evaluateJavascript(
+                    "(function(){var i=document.querySelector('input[type=\"tel\"],input[name*=\"code\"],input[name*=\"otp\"]'); if(i){ i.value='${'$'}it'; var e=new Event('input',{bubbles:true}); i.dispatchEvent(e);} return true;})();",
+                    null
+                )
+            }
+        }
+    }
+
+    private val smsBroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (SmsRetriever.SMS_RETRIEVED_ACTION != intent?.action) return
+            val extras = intent.extras ?: return
+            val status = extras.get(SmsRetriever.EXTRA_STATUS) as? Status ?: return
+            when (status.statusCode) {
+                CommonStatusCodes.SUCCESS -> {
+                    val consentIntent = extras.getParcelable<Intent>(SmsRetriever.EXTRA_CONSENT_INTENT)
+                    consentIntent?.let { smsConsentResultLauncher.launch(it) }
+                }
+                CommonStatusCodes.TIMEOUT -> {
+                    // Ignore; no SMS received within the timeout window
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,6 +64,19 @@ class MainActivity : AppCompatActivity() {
 
         configureWebView()
         binding.webView.loadUrl(targetUrl)
+
+        // Start SMS User Consent (no SMS permission required)
+        SmsRetriever.getClient(this).startSmsUserConsent(null)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        registerReceiver(smsBroadcastReceiver, IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION))
+    }
+
+    override fun onStop() {
+        unregisterReceiver(smsBroadcastReceiver)
+        super.onStop()
     }
 
     override fun onBackPressed() {
