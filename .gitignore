@@ -1,0 +1,11 @@
+.gradle/
+**/.gradle/
+gradle-8.7/
+gradle-*-bin.zip
+local.properties
+*.iml
+.idea/
+.vscode/
+build/
+**/build/
+
