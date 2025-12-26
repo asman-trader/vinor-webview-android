@@ -199,7 +199,7 @@ class MainActivity : AppCompatActivity() {
                 val original = chain.request()
                 if (!isOnline()) {
                     val offline = original.newBuilder()
-                        .cacheControl(CacheControl.Builder().onlyIfCached().maxStale(7, TimeUnit.DAYS).build())
+                        .cacheControl(CacheControl.Builder().onlyIfCached().maxStale(30, TimeUnit.DAYS).build())
                         .build()
                     chain.proceed(offline)
                 } else {

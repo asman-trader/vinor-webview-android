@@ -36,6 +36,8 @@ android {
         }
         debug {
             minifyEnabled false
+            applicationIdSuffix ".dev"
+            versionNameSuffix "-dev"
         }
     }
 
