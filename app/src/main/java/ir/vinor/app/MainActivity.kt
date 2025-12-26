@@ -53,17 +53,13 @@ class MainActivity : AppCompatActivity() {
         val url = request.url.toString()
         if (request.method != "GET") return null
         if (!(url.startsWith("http://") || url.startsWith("https://"))) return null
-        // Avoid intercepting HTML documents; focus on static assets
-        val isStatic = url.contains(".js") || url.contains(".css") || url.contains(".png") ||
-                url.contains(".jpg") || url.contains(".jpeg") || url.contains(".webp") ||
-                url.contains(".svg") || url.contains(".woff") || url.contains(".woff2") || url.contains(".ttf")
-        if (!isStatic) return null
         return try {
             val reqBuilder = Request.Builder().url(url)
             if (!isOnline()) {
                 reqBuilder.cacheControl(CacheControl.FORCE_CACHE)
             }
             val resp = httpClient.newCall(reqBuilder.build()).execute()
+            if (resp.code == 504) return null
             val body = resp.body ?: return null
             val mime = resp.header("Content-Type")?.substringBefore(";") ?: guessMime(url)
             val encoding = "utf-8"
@@ -154,19 +150,22 @@ class MainActivity : AppCompatActivity() {
         val cache = Cache(cacheDir, 50L * 1024L * 1024L)
         httpClient = OkHttpClient.Builder()
             .cache(cache)
-            // Add default caching for common static assets when server doesn't set it
+            // Add default caching for static assets and short cache for HTML when server doesn't set it
             .addNetworkInterceptor { chain ->
                 val request = chain.request()
                 val response = chain.proceed(request)
                 val url = request.url.toString()
+                val contentType = response.header("Content-Type") ?: ""
                 val isStatic = url.endsWith(".js") || url.endsWith(".css") ||
                         url.endsWith(".png") || url.endsWith(".jpg") ||
                         url.endsWith(".jpeg") || url.endsWith(".webp") ||
                         url.endsWith(".svg") || url.endsWith(".woff") ||
                         url.endsWith(".woff2") || url.endsWith(".ttf")
-                if (response.header("Cache-Control") == null && isStatic) {
+                val isHtml = contentType.startsWith("text/html") || !(isStatic || url.contains("."))
+                if (response.header("Cache-Control") == null) {
+                    val maxAge = if (isHtml) 3600 else 86400
                     response.newBuilder()
-                        .header("Cache-Control", "public, max-age=86400")
+                        .header("Cache-Control", "public, max-age=$maxAge")
                         .build()
                 } else response
             }
