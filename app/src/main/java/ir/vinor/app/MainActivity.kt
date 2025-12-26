@@ -277,7 +277,6 @@ class MainActivity : AppCompatActivity() {
     private fun configureWebView() {
         // Use hardware acceleration and pre-raster for smoother first paint
         binding.webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        binding.webView.setOffscreenPreRaster(true)
 
         with(binding.webView.settings) {
             javaScriptEnabled = true
