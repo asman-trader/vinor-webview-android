@@ -11,6 +11,7 @@ import android.net.Uri
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.ValueCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -45,14 +46,7 @@ class MainActivity : AppCompatActivity() {
         // Try to extract a 4-8 digit code from the SMS text
         val code = Regex("""\b(\d{4,8})\b""").find(message)?.value
         // For now, just inject the code into the page if there is a handler (adjust selector if needed)
-        code?.let {
-            binding.webView.post {
-                binding.webView.evaluateJavascript(
-                    "(function(){var i=document.querySelector('input[type=\"tel\"],input[name*=\"code\"],input[name*=\"otp\"]'); if(i){ i.value='${'$'}it'; var e=new Event('input',{bubbles:true}); i.dispatchEvent(e);} return true;})();",
-                    null
-                )
-            }
-        }
+        code?.let { onOtpReceived(it) }
     }
 
     private val smsBroadcastReceiver = object : BroadcastReceiver() {
@@ -89,6 +83,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var isSmsReceiverRegistered: Boolean = false
+    private var pendingOtp: String? = null
 
     override fun onStart() {
         super.onStart()
@@ -145,7 +140,59 @@ class MainActivity : AppCompatActivity() {
                 view?.loadUrl(url)
                 return true
             }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                pendingOtp?.let { injectOtpToWebView(it) }
+            }
         }
+    }
+
+    private fun onOtpReceived(code: String) {
+        pendingOtp = code
+        binding.webView.post { injectOtpToWebView(code) }
+    }
+
+    private fun injectOtpToWebView(code: String) {
+        val escaped = code.replace("'", "\\'")
+        val js = """
+            (function(){
+                var code = '$escaped';
+                function setValue(el){
+                    if(!el) return false;
+                    try{
+                        el.focus();
+                        el.value = code;
+                        el.setAttribute('value', code);
+                        var evts=['input','change','keyup','keydown','blur'];
+                        evts.forEach(function(t){ try{ el.dispatchEvent(new Event(t,{bubbles:true})); }catch(e){} });
+                        return true;
+                    }catch(e){ return false; }
+                }
+                var selectors = [
+                    "input[autocomplete='one-time-code']",
+                    "input[name*='otp' i]",
+                    "input[name*='code' i]",
+                    "input[id*='otp' i]",
+                    "input[id*='code' i]",
+                    "input[class*='otp' i]",
+                    "input[class*='code' i]",
+                    "input[type='tel']",
+                    "input[type='number']"
+                ];
+                for (var i=0;i<selectors.length;i++){
+                    var el = document.querySelector(selectors[i]);
+                    if (setValue(el)) return 'ok';
+                }
+                return 'notfound';
+            })();
+        """.trimIndent()
+
+        binding.webView.evaluateJavascript(js, ValueCallback { result ->
+            if (result?.contains("ok") == true) {
+                pendingOtp = null
+            }
+        })
     }
 
     private fun requestCallPermissionsIfNeeded() {
