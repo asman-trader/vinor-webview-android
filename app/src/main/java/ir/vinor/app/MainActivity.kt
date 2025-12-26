@@ -30,6 +30,7 @@ import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.brotli.BrotliInterceptor
 import java.io.File
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
@@ -160,6 +161,8 @@ class MainActivity : AppCompatActivity() {
         val cache = Cache(cacheDir, 100L * 1024L * 1024L)
         httpClient = OkHttpClient.Builder()
             .cache(cache)
+            // Enable Brotli to reduce payload sizes (server permitting)
+            .addInterceptor(BrotliInterceptor)
             // Add default caching for static/media/HTML when server doesn't set it
             .addNetworkInterceptor { chain ->
                 val request = chain.request()
@@ -181,8 +184,10 @@ class MainActivity : AppCompatActivity() {
                         contentType.contains("application/vnd.apple.mpegurl") ||
                         contentType.contains("application/dash+xml")
                 val isHtml = contentType.startsWith("text/html") || !(isStatic || url.contains("."))
+                val isHashed = Regex("([a-f0-9]{8,})").containsMatchIn(url) || url.contains("v=") || url.contains("ver=")
                 if (response.header("Cache-Control") == null) {
                     val maxAge = when {
+                        isHashed && isStatic -> 365 * 24 * 3600 // 1 year for fingerprinted assets
                         isImage || url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".jpeg") ||
                                 url.endsWith(".webp") || url.endsWith(".gif") -> 7 * 24 * 3600 // 7 روز
                         isVideo || url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".m4v") ||
