@@ -84,6 +84,14 @@ class MainActivity : AppCompatActivity() {
             url.endsWith(".png") -> "image/png"
             url.endsWith(".jpg") || url.endsWith(".jpeg") -> "image/jpeg"
             url.endsWith(".webp") -> "image/webp"
+            url.endsWith(".gif") -> "image/gif"
+            url.endsWith(".mp4") -> "video/mp4"
+            url.endsWith(".webm") -> "video/webm"
+            url.endsWith(".m4v") -> "video/mp4"
+            url.endsWith(".mov") -> "video/quicktime"
+            url.endsWith(".m3u8") -> "application/vnd.apple.mpegurl"
+            url.endsWith(".mpd") -> "application/dash+xml"
+            url.endsWith(".ts") -> "video/mp2t"
             url.endsWith(".svg") -> "image/svg+xml"
             url.endsWith(".woff") -> "font/woff"
             url.endsWith(".woff2") -> "font/woff2"
@@ -145,12 +153,12 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Prepare OkHttp cache (50 MB)
+        // Prepare OkHttp cache (100 MB) برای کش بهتر تصاویر/ویدیو
         val cacheDir = File(cacheDir, "http")
-        val cache = Cache(cacheDir, 50L * 1024L * 1024L)
+        val cache = Cache(cacheDir, 100L * 1024L * 1024L)
         httpClient = OkHttpClient.Builder()
             .cache(cache)
-            // Add default caching for static assets and short cache for HTML when server doesn't set it
+            // Add default caching for static/media/HTML when server doesn't set it
             .addNetworkInterceptor { chain ->
                 val request = chain.request()
                 val response = chain.proceed(request)
@@ -158,12 +166,29 @@ class MainActivity : AppCompatActivity() {
                 val contentType = response.header("Content-Type") ?: ""
                 val isStatic = url.endsWith(".js") || url.endsWith(".css") ||
                         url.endsWith(".png") || url.endsWith(".jpg") ||
-                        url.endsWith(".jpeg") || url.endsWith(".webp") ||
-                        url.endsWith(".svg") || url.endsWith(".woff") ||
+                        url.endsWith(".jpeg") || url.endsWith(".webp") || url.endsWith(".gif") ||
+                        url.endsWith(".svg") ||
+                        // video formats
+                        url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".m4v") ||
+                        url.endsWith(".mov") || url.endsWith(".m3u8") || url.endsWith(".ts") ||
+                        url.endsWith(".mpd") ||
+                        url.endsWith(".woff") ||
                         url.endsWith(".woff2") || url.endsWith(".ttf")
+                val isImage = contentType.startsWith("image/")
+                val isVideo = contentType.startsWith("video/") ||
+                        contentType.contains("application/vnd.apple.mpegurl") ||
+                        contentType.contains("application/dash+xml")
                 val isHtml = contentType.startsWith("text/html") || !(isStatic || url.contains("."))
                 if (response.header("Cache-Control") == null) {
-                    val maxAge = if (isHtml) 3600 else 86400
+                    val maxAge = when {
+                        isImage || url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".jpeg") ||
+                                url.endsWith(".webp") || url.endsWith(".gif") -> 7 * 24 * 3600 // 7 روز
+                        isVideo || url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".m4v") ||
+                                url.endsWith(".mov") || url.endsWith(".m3u8") || url.endsWith(".ts") ||
+                                url.endsWith(".mpd") -> 3 * 24 * 3600 // 3 روز
+                        isHtml -> 3600 // 1 ساعت
+                        else -> 86400 // 1 روز
+                    }
                     response.newBuilder()
                         .header("Cache-Control", "public, max-age=$maxAge")
                         .build()
