@@ -15,6 +15,8 @@ import android.webkit.ValueCallback
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
 import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -209,6 +211,15 @@ class MainActivity : AppCompatActivity() {
             .build()
 
         configureWebView()
+
+        // Warm-up connection (DNS/TLS) in background to reduce TTFB on first load
+        try {
+            httpClient.newCall(Request.Builder().url(targetUrl).head().build()).enqueue(object : okhttp3.Callback {
+                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
+                override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.close() }
+            })
+        } catch (_: Exception) {}
+
         binding.webView.loadUrl(targetUrl)
 
         // Ask call-related permissions early (optional)
@@ -264,6 +275,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureWebView() {
+        // Use hardware acceleration and pre-raster for smoother first paint
+        binding.webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        binding.webView.setOffscreenPreRaster(true)
+
         with(binding.webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -272,8 +287,12 @@ class MainActivity : AppCompatActivity() {
             loadWithOverviewMode = true
             builtInZoomControls = true
             displayZoomControls = false
-            cacheMode = if (isOnline()) android.webkit.WebSettings.LOAD_DEFAULT
-            else android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
+            cacheMode = if (isOnline()) WebSettings.LOAD_DEFAULT else WebSettings.LOAD_CACHE_ELSE_NETWORK
+            databaseEnabled = true
+            allowContentAccess = true
+            allowFileAccess = false
+            textZoom = 100
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         }
 
         binding.webView.webViewClient = object : WebViewClient() {
