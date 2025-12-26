@@ -29,7 +29,8 @@ class MainActivity : AppCompatActivity() {
 
     private val requiredPermissions = arrayOf(
         Manifest.permission.CALL_PHONE,
-        Manifest.permission.READ_PHONE_STATE
+        Manifest.permission.READ_PHONE_STATE,
+        Manifest.permission.SEND_SMS
     )
 
     private val permissionLauncher = registerForActivityResult(
@@ -137,6 +138,10 @@ class MainActivity : AppCompatActivity() {
                     handleTelLink(url)
                     return true
                 }
+                if (url.startsWith("sms:") || url.startsWith("smsto:")) {
+                    handleSmsLink(url)
+                    return true
+                }
                 view?.loadUrl(url)
                 return true
             }
@@ -145,6 +150,19 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 pendingOtp?.let { injectOtpToWebView(it) }
             }
+        }
+    }
+
+    private fun handleSmsLink(url: String) {
+        // Prefer ACTION_SENDTO to let user confirm sending; works without SEND_SMS
+        val smsUri = if (url.startsWith("sms:")) {
+            Uri.parse(url.replaceFirst("sms:", "smsto:"))
+        } else Uri.parse(url)
+        val intent = Intent(Intent.ACTION_SENDTO, smsUri)
+        // Some sites pass ?body=...; Android reads it automatically for smsto:
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
         }
     }
 
