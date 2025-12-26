@@ -12,6 +12,9 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.ValueCallback
+import android.webkit.ServiceWorkerClient
+import android.webkit.ServiceWorkerController
+import android.webkit.WebResourceResponse
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -21,6 +24,13 @@ import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Status
 import ir.vinor.app.databinding.ActivityMainBinding
+import okhttp3.Cache
+import okhttp3.CacheControl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.InputStream
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
@@ -39,6 +49,72 @@ class MainActivity : AppCompatActivity() {
         // No-op: on next tel: click we will try again or fall back to ACTION_DIAL
     }
 
+    private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
+        val url = request.url.toString()
+        if (request.method != "GET") return null
+        if (!(url.startsWith("http://") || url.startsWith("https://"))) return null
+        // Avoid intercepting HTML documents; focus on static assets
+        val isStatic = url.contains(".js") || url.contains(".css") || url.contains(".png") ||
+                url.contains(".jpg") || url.contains(".jpeg") || url.contains(".webp") ||
+                url.contains(".svg") || url.contains(".woff") || url.contains(".woff2") || url.contains(".ttf")
+        if (!isStatic) return null
+        return try {
+            val reqBuilder = Request.Builder().url(url)
+            if (!isOnline()) {
+                reqBuilder.cacheControl(CacheControl.FORCE_CACHE)
+            }
+            val resp = httpClient.newCall(reqBuilder.build()).execute()
+            val body = resp.body ?: return null
+            val mime = resp.header("Content-Type")?.substringBefore(";") ?: guessMime(url)
+            val encoding = "utf-8"
+            val stream: InputStream = body.byteStream()
+            val response = WebResourceResponse(mime, encoding, stream)
+            val headers = HashMap<String, String>()
+            resp.headers.names().forEach { name ->
+                headers[name] = resp.header(name).orEmpty()
+            }
+            response.responseHeaders = headers
+            response.setStatusCodeAndReasonPhrase(resp.code, resp.message)
+            response
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun guessMime(url: String): String {
+        return when {
+            url.endsWith(".js") -> "application/javascript"
+            url.endsWith(".css") -> "text/css"
+            url.endsWith(".png") -> "image/png"
+            url.endsWith(".jpg") || url.endsWith(".jpeg") -> "image/jpeg"
+            url.endsWith(".webp") -> "image/webp"
+            url.endsWith(".svg") -> "image/svg+xml"
+            url.endsWith(".woff") -> "font/woff"
+            url.endsWith(".woff2") -> "font/woff2"
+            url.endsWith(".ttf") -> "font/ttf"
+            else -> "text/plain"
+        }
+    }
+
+    private fun isOnline(): Boolean {
+        return try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val nw = cm.activeNetwork ?: return false
+                val caps = cm.getNetworkCapabilities(nw) ?: return false
+                caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+                        caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                        caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+            } else {
+                @Suppress("DEPRECATION")
+                val ni = cm.activeNetworkInfo
+                @Suppress("DEPRECATION")
+                ni != null && ni.isConnected
+            }
+        } catch (_: Exception) {
+            true
+        }
+    }
     private val smsConsentResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -73,6 +149,41 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Prepare OkHttp cache (50 MB)
+        val cacheDir = File(cacheDir, "http")
+        val cache = Cache(cacheDir, 50L * 1024L * 1024L)
+        httpClient = OkHttpClient.Builder()
+            .cache(cache)
+            // Add default caching for common static assets when server doesn't set it
+            .addNetworkInterceptor { chain ->
+                val request = chain.request()
+                val response = chain.proceed(request)
+                val url = request.url.toString()
+                val isStatic = url.endsWith(".js") || url.endsWith(".css") ||
+                        url.endsWith(".png") || url.endsWith(".jpg") ||
+                        url.endsWith(".jpeg") || url.endsWith(".webp") ||
+                        url.endsWith(".svg") || url.endsWith(".woff") ||
+                        url.endsWith(".woff2") || url.endsWith(".ttf")
+                if (response.header("Cache-Control") == null && isStatic) {
+                    response.newBuilder()
+                        .header("Cache-Control", "public, max-age=86400")
+                        .build()
+                } else response
+            }
+            // Use cache only when offline
+            .addInterceptor { chain ->
+                val original = chain.request()
+                if (!isOnline()) {
+                    val offline = original.newBuilder()
+                        .cacheControl(CacheControl.Builder().onlyIfCached().maxStale(7, TimeUnit.DAYS).build())
+                        .build()
+                    chain.proceed(offline)
+                } else {
+                    chain.proceed(original)
+                }
+            }
+            .build()
+
         configureWebView()
         binding.webView.loadUrl(targetUrl)
 
@@ -81,10 +192,20 @@ class MainActivity : AppCompatActivity() {
 
         // Start SMS User Consent (no SMS permission required)
         SmsRetriever.getClient(this).startSmsUserConsent(null)
+
+        // Route service worker network to OkHttp cache as well (Android N+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
+                override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+                    return interceptToOkHttp(request)
+                }
+            })
+        }
     }
 
     private var isSmsReceiverRegistered: Boolean = false
     private var pendingOtp: String? = null
+    private lateinit var httpClient: OkHttpClient
 
     override fun onStart() {
         super.onStart()
@@ -122,10 +243,13 @@ class MainActivity : AppCompatActivity() {
         with(binding.webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
+            loadsImagesAutomatically = true
             useWideViewPort = true
             loadWithOverviewMode = true
             builtInZoomControls = true
             displayZoomControls = false
+            cacheMode = if (isOnline()) android.webkit.WebSettings.LOAD_DEFAULT
+            else android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
         }
 
         binding.webView.webViewClient = object : WebViewClient() {
@@ -149,6 +273,11 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 pendingOtp?.let { injectOtpToWebView(it) }
+            }
+
+            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                request ?: return super.shouldInterceptRequest(view, request)
+                return interceptToOkHttp(request) ?: super.shouldInterceptRequest(view, request)
             }
         }
     }
