@@ -1,28 +1,104 @@
 <!doctype html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>آفلاین</title>
+  <title>اتصال اینترنت برقرار نیست</title>
   <style>
-    body{margin:0;background:#0b1220;color:#fff;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center}
-    .card{max-width:520px;padding:24px;border-radius:16px;background:#111827;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.3)}
-    h1{margin:0 0 8px;font-size:22px}
-    p{margin:0 0 16px;opacity:.9;line-height:1.7}
-    button{background:#16a34a;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-size:15px;cursor:pointer}
+    :root{
+      --bg:#0f172a;
+      --card:#101828;
+      --muted:#9aa4b2;
+      --brand:#e53935; /* قرمز نزدیک به استایل دیوار */
+      --brand-dark:#c62828;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:
+        radial-gradient(1200px 600px at 80% -20%, rgba(229,57,53,.15), transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, rgba(229,57,53,.12), transparent 60%),
+        var(--bg);
+      color:#fff;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      min-height:100vh;
+      display:flex;align-items:center;justify-content:center;
+      padding:24px;
+    }
+    .wrap{
+      width:100%;
+      max-width:560px;
+      background:linear-gradient(180deg,#0b1220 0%, #0f172a 100%);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:20px;
+      box-shadow:0 12px 40px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .hero{
+      padding:28px 24px 12px;
+      display:flex;gap:16px;align-items:center;justify-content:center;flex-direction:column;
+      text-align:center;
+    }
+    .badge{
+      display:inline-flex;align-items:center;gap:10px;
+      background:rgba(229,57,53,.15);color:#fff;
+      padding:10px 14px;border-radius:999px;font-weight:600
+    }
+    .icon{
+      width:44px;height:44px;border-radius:12px;
+      background:linear-gradient(135deg,var(--brand),var(--brand-dark));
+      display:grid;place-items:center;box-shadow:0 8px 24px rgba(229,57,53,.35)
+    }
+    .icon svg{width:26px;height:26px;fill:#fff}
+    h1{margin:12px 0 8px;font-size:22px}
+    p{margin:0;color:var(--muted);line-height:1.9}
+    .cta{
+      display:flex;gap:12px;justify-content:center;align-items:center;
+      padding:20px 24px 28px
+    }
+    button{
+      appearance:none;border:0;cursor:pointer;
+      padding:12px 18px;border-radius:12px;font-size:15px;font-weight:700
+    }
+    .primary{background:var(--brand);color:#fff;box-shadow:0 8px 24px rgba(229,57,53,.35)}
+    .primary:active{transform:translateY(1px)}
+    .ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.2)}
+    .tips{padding:0 24px 20px;color:#9aa4b2;font-size:13px;text-align:center}
+    .count{font-variant-numeric:tabular-nums}
   </style>
   <script>
-    function reloadOnline(){
-      location.reload();
+    let retryIn = 5, timer;
+    function reloadNow(){ location.reload(); }
+    function startTimer(){
+      const el = document.getElementById('retry-count');
+      clearInterval(timer);
+      el.textContent = retryIn;
+      timer = setInterval(()=>{
+        retryIn--;
+        el.textContent = retryIn;
+        if(retryIn<=0){ clearInterval(timer); reloadNow(); }
+      },1000);
     }
+    window.addEventListener('load', startTimer);
   </script>
-  </head>
-  <body>
-    <div class="card">
-      <h1>اتصال اینترنت در دسترس نیست</h1>
-      <p>برخی فایل‌ها ممکن است از کش باز شوند، اما برای نمایش کامل، دوباره تلاش کنید.</p>
-      <button onclick="reloadOnline()">تلاش مجدد</button>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="icon" aria-hidden="true">
+        <!-- WiFi off icon -->
+        <svg viewBox="0 0 24 24"><path d="M12 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10.94-9.06-1.41 1.41A14.93 14.93 0 0 0 12 8c-3.95 0-7.55 1.54-10.53 4.35L0.06 10.94A16.93 16.93 0 0 1 12 6c4.61 0 8.79 1.79 10.94 2.94ZM5.64 14.36A9.97 9.97 0 0 1 12 12c2.03 0 3.94.6 5.53 1.64l-1.41 1.41A7.973 7.973 0 0 0 12 14c-1.52 0-2.94.43-4.12 1.17l-2.24-.81Zm12.02 3.6L4.04 4.34 5.45 2.93l13.62 13.62-1.41 1.41Z"/></svg>
+      </div>
+      <div class="badge">بدون اتصال اینترنت</div>
+      <h1>نمایش کامل صفحه ممکن نیست</h1>
+      <p>اتصال شما برقرار نیست. پس از وصل‌شدن اینترنت، روی «تلاش مجدد» بزنید تا صفحه دوباره بارگذاری شود.</p>
     </div>
-  </body>
+    <div class="cta">
+      <button class="primary" onclick="reloadNow()">تلاش مجدد</button>
+      <button class="ghost" onclick="startTimer()">شروع مجدد شمارش (<span id="retry-count" class="count">5</span>)</button>
+    </div>
+    <div class="tips">برخی فایل‌ها در حافظه کش ذخیره می‌شوند و ممکن است بدون اینترنت هم نمایش داده شوند.</div>
+  </div>
+</body>
 </html>
 
