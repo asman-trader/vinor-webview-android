@@ -1,0 +1,47 @@
+@echo off
+setlocal EnableDelayedExpansion
+
+echo ================================
+echo Vinor Auto Commit & Push
+echo ================================
+
+REM اگر فایل version.txt وجود ندارد، بساز
+if not exist version.txt (
+    echo 1.0.0 > version.txt
+)
+
+REM خواندن ورژن فعلی
+set /p VERSION=<version.txt
+
+REM جدا کردن ورژن
+for /f "tokens=1-3 delims=." %%a in ("%VERSION%") do (
+    set MAJOR=%%a
+    set MINOR=%%b
+    set PATCH=%%c
+)
+
+REM افزایش PATCH
+set /a PATCH+=1
+
+REM ورژن جدید
+set NEW_VERSION=%MAJOR%.%MINOR%.%PATCH%
+
+echo New version: %NEW_VERSION%
+
+REM ذخیره ورژن جدید
+echo %NEW_VERSION% > version.txt
+
+REM اضافه کردن همه تغییرات
+git add -A
+
+REM ساخت کامیت
+git commit -m "Vinor Android WebView v%NEW_VERSION%"
+
+REM پوش به main
+git push origin main
+
+echo ================================
+echo DONE - v%NEW_VERSION% pushed 🚀
+echo ================================
+
+pause
