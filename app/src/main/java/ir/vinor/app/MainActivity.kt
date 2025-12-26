@@ -1,17 +1,21 @@
 package ir.vinor.app
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.net.Uri
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Status
@@ -21,6 +25,17 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val targetUrl = "https://vinor.ir"
+
+    private val requiredPermissions = arrayOf(
+        Manifest.permission.CALL_PHONE,
+        Manifest.permission.READ_PHONE_STATE
+    )
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        // No-op: on next tel: click we will try again or fall back to ACTION_DIAL
+    }
 
     private val smsConsentResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -65,6 +80,9 @@ class MainActivity : AppCompatActivity() {
 
         configureWebView()
         binding.webView.loadUrl(targetUrl)
+
+        // Ask call-related permissions early (optional)
+        requestCallPermissionsIfNeeded()
 
         // Start SMS User Consent (no SMS permission required)
         SmsRetriever.getClient(this).startSmsUserConsent(null)
@@ -119,9 +137,40 @@ class MainActivity : AppCompatActivity() {
                 view: WebView?,
                 request: WebResourceRequest?
             ): Boolean {
-                request?.url?.toString()?.let { view?.loadUrl(it) }
+                val url = request?.url?.toString() ?: return false
+                if (url.startsWith("tel:")) {
+                    handleTelLink(url)
+                    return true
+                }
+                view?.loadUrl(url)
                 return true
             }
+        }
+    }
+
+    private fun requestCallPermissionsIfNeeded() {
+        val needs = requiredPermissions.any {
+            ContextCompat.checkSelfPermission(this, it) != PermissionChecker.PERMISSION_GRANTED
+        }
+        if (needs) {
+            permissionLauncher.launch(requiredPermissions)
+        }
+    }
+
+    private fun handleTelLink(url: String) {
+        val hasCallPermission = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.CALL_PHONE
+        ) == PermissionChecker.PERMISSION_GRANTED
+        val intent = if (hasCallPermission) {
+            Intent(Intent.ACTION_CALL, Uri.parse(url))
+        } else {
+            // Fallback to dialer if no CALL_PHONE
+            Intent(Intent.ACTION_DIAL, Uri.parse(url))
+        }
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
+            // No dialer present; ignore
         }
     }
 }
