@@ -3,6 +3,11 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def readVersionName() {
+    def f = new File(rootDir, "version.txt")
+    return f.exists() ? f.getText("UTF-8").trim() : "1.0"
+}
+
 android {
     namespace "ir.vinor.app"
     compileSdk 34
@@ -12,7 +17,7 @@ android {
         minSdk 21
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        versionName readVersionName()
     }
 
     buildTypes {
@@ -40,7 +45,7 @@ android {
 androidComponents {
     onVariants(selector().all()) { variant ->
         variant.outputs.each { output ->
-            output.outputFileName.set("vinor-1.0.apk")
+            output.outputFileName.set("vinor-${readVersionName()}.apk")
         }
     }
 }
