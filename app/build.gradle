@@ -17,6 +17,11 @@ def computeVersionCode(String ver) {
     return major * 10000 + minor * 100 + patch
 }
 
+def releaseStoreFile = project.findProperty("RELEASE_STORE_FILE") ?: System.getenv("RELEASE_STORE_FILE")
+def releaseStorePassword = project.findProperty("RELEASE_STORE_PASSWORD") ?: System.getenv("RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = project.findProperty("RELEASE_KEY_ALIAS") ?: System.getenv("RELEASE_KEY_ALIAS") ?: "vinor_release"
+def releaseKeyPassword = project.findProperty("RELEASE_KEY_PASSWORD") ?: System.getenv("RELEASE_KEY_PASSWORD")
+
 android {
     namespace "ir.vinor.app"
     compileSdk 34
@@ -29,9 +34,21 @@ android {
         versionCode computeVersionCode(versionName)
     }
 
+    signingConfigs {
+        release {
+            storeFile file(releaseStoreFile ?: "${rootDir}/keystore/release.keystore")
+            storePassword releaseStorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
+        }
+    }
+
     buildTypes {
         release {
-            minifyEnabled false
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            debuggable false
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
         debug {

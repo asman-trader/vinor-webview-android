@@ -1,27 +1,24 @@
 package ir.vinor.app
 
-import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.net.Uri
+import android.view.View
+import android.webkit.ServiceWorkerClient
+import android.webkit.ServiceWorkerController
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.ValueCallback
-import android.webkit.ServiceWorkerClient
-import android.webkit.ServiceWorkerController
-import android.webkit.WebResourceResponse
-import android.webkit.WebSettings
-import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.content.ContextCompat
-import androidx.core.content.PermissionChecker
 import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Status
@@ -40,30 +37,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val targetUrl = "https://vinor.ir"
 
-    private val requiredPermissions = arrayOf(
-        Manifest.permission.CALL_PHONE,
-        Manifest.permission.READ_PHONE_STATE,
-        Manifest.permission.SEND_SMS
-    )
-
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ ->
-        // No-op: on next tel: click we will try again or fall back to ACTION_DIAL
-    }
-
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
         if (request.method != "GET") return null
         if (!(url.startsWith("http://") || url.startsWith("https://"))) return null
-        // Only static/media via OkHttp when online; offline try cache for all
-        val isStatic = url.endsWith(".js") || url.endsWith(".css") ||
-                url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".jpeg") ||
-                url.endsWith(".webp") || url.endsWith(".gif") || url.endsWith(".svg") ||
-                url.endsWith(".woff") || url.endsWith(".woff2") || url.endsWith(".ttf") ||
-                url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".m4v") ||
-                url.endsWith(".mov") || url.endsWith(".m3u8") || url.endsWith(".ts") || url.endsWith(".mpd")
-        if (isOnline() && !isStatic) return null
         return try {
             val reqBuilder = Request.Builder().url(url)
             if (!isOnline()) {
@@ -235,9 +212,6 @@ class MainActivity : AppCompatActivity() {
 
         binding.webView.loadUrl(targetUrl)
 
-        // Ask call-related permissions early (optional)
-        requestCallPermissionsIfNeeded()
-
         // Start SMS User Consent (no SMS permission required)
         SmsRetriever.getClient(this).startSmsUserConsent(null)
 
@@ -313,10 +287,16 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest?
             ): Boolean {
                 val url = request?.url?.toString() ?: return false
-                if (url.startsWith("tel:")) { handleTelLink(url); return true }
-                if (url.startsWith("sms:") || url.startsWith("smsto:")) { handleSmsLink(url); return true }
-                // Let WebView handle http/https internally (faster path)
-                return false
+                if (url.startsWith("tel:")) {
+                    handleTelLink(url)
+                    return true
+                }
+                if (url.startsWith("sms:") || url.startsWith("smsto:")) {
+                    handleSmsLink(url)
+                    return true
+                }
+                view?.loadUrl(url)
+                return true
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -391,25 +371,9 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun requestCallPermissionsIfNeeded() {
-        val needs = requiredPermissions.any {
-            ContextCompat.checkSelfPermission(this, it) != PermissionChecker.PERMISSION_GRANTED
-        }
-        if (needs) {
-            permissionLauncher.launch(requiredPermissions)
-        }
-    }
-
     private fun handleTelLink(url: String) {
-        val hasCallPermission = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.CALL_PHONE
-        ) == PermissionChecker.PERMISSION_GRANTED
-        val intent = if (hasCallPermission) {
-            Intent(Intent.ACTION_CALL, Uri.parse(url))
-        } else {
-            // Fallback to dialer if no CALL_PHONE
-            Intent(Intent.ACTION_DIAL, Uri.parse(url))
-        }
+        // Always hand off to the dialer; no CALL_PHONE permission is requested
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse(url))
         try {
             startActivity(intent)
         } catch (_: Exception) {
