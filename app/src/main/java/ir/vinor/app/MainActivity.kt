@@ -56,6 +56,14 @@ class MainActivity : AppCompatActivity() {
         val url = request.url.toString()
         if (request.method != "GET") return null
         if (!(url.startsWith("http://") || url.startsWith("https://"))) return null
+        // Only static/media via OkHttp when online; offline try cache for all
+        val isStatic = url.endsWith(".js") || url.endsWith(".css") ||
+                url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".jpeg") ||
+                url.endsWith(".webp") || url.endsWith(".gif") || url.endsWith(".svg") ||
+                url.endsWith(".woff") || url.endsWith(".woff2") || url.endsWith(".ttf") ||
+                url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".m4v") ||
+                url.endsWith(".mov") || url.endsWith(".m3u8") || url.endsWith(".ts") || url.endsWith(".mpd")
+        if (isOnline() && !isStatic) return null
         return try {
             val reqBuilder = Request.Builder().url(url)
             if (!isOnline()) {
@@ -305,16 +313,10 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest?
             ): Boolean {
                 val url = request?.url?.toString() ?: return false
-                if (url.startsWith("tel:")) {
-                    handleTelLink(url)
-                    return true
-                }
-                if (url.startsWith("sms:") || url.startsWith("smsto:")) {
-                    handleSmsLink(url)
-                    return true
-                }
-                view?.loadUrl(url)
-                return true
+                if (url.startsWith("tel:")) { handleTelLink(url); return true }
+                if (url.startsWith("sms:") || url.startsWith("smsto:")) { handleSmsLink(url); return true }
+                // Let WebView handle http/https internally (faster path)
+                return false
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
