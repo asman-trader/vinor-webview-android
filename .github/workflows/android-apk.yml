@@ -70,6 +70,26 @@ EOF
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: ./gradlew assembleDirectRelease --stacktrace --no-daemon
 
+      - name: Read version name
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(tr -d '\r\n' < version.txt)"
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Rename APK to include version
+        shell: bash
+        run: |
+          APK_DIR="app/build/outputs/apk/direct"
+          SRC_APK="$(ls -1 "$APK_DIR"/*.apk | head -n 1)"
+          if [ -z "$SRC_APK" ]; then
+            echo "No APK found in $APK_DIR"
+            exit 1
+          fi
+          DEST_APK="$APK_DIR/vinor-${{ steps.version.outputs.VERSION }}.apk"
+          mv "$SRC_APK" "$DEST_APK"
+          echo "Renamed to: $DEST_APK"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
