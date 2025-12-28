@@ -16,11 +16,11 @@ def computeVersionCode(String ver) {
     def major = parts.length > 0 ? parts[0].toInteger() : 0
     def minor = parts.length > 1 ? parts[1].toInteger() : 0
     def patch = parts.length > 2 ? parts[2].toInteger() : 0
-    // versionCode = MMmmpp (e.g., 1.0.4 -> 10004) - increases when version.txt increments
+    // versionCode = MMmmpp (e.g., 1.0.4 -> 10004)
     return major * 10000 + minor * 100 + patch
 }
 
-// Load keystore credentials from key.properties (preferred) or local.properties (fallback)
+// Prefer key.properties (runtime in CI); fallback to envs if needed
 def loadKeystoreProps() {
     def props = new Properties()
     def keyPropsFile = new File(rootDir, "key.properties")
@@ -28,33 +28,26 @@ def loadKeystoreProps() {
         new FileInputStream(keyPropsFile).withCloseable { props.load(it) }
         return props
     }
-    def localPropsFile = new File(rootDir, "local.properties")
-    if (localPropsFile.exists()) {
-        new FileInputStream(localPropsFile).withCloseable { props.load(it) }
-    }
+    // fallback to environment variables
+    System.getenv().each { k, v -> props.setProperty(k, v) }
     return props
 }
-
 def ksProps = loadKeystoreProps()
-def vinorStoreFile = ksProps.getProperty("storeFile", "${rootDir}/app/keystore/vinor-release.jks")
-def vinorStorePassword = ksProps.getProperty("storePassword")
-def vinorKeyAlias = ksProps.getProperty("keyAlias", "vinor_release")
-def vinorKeyPassword = ksProps.getProperty("keyPassword")
-
-// NOTE: Do not validate keystore at configuration time to avoid breaking Gradle sync.
-def vinorStorePath = file(vinorStoreFile)
+def releaseStoreFile = ksProps.getProperty("storeFile", "${rootDir}/app/keystore/vinor-release.jks")
+def releaseStorePassword = ksProps.getProperty("storePassword") ?: ksProps.getProperty("RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = ksProps.getProperty("keyAlias", "vinor_release")
+def releaseKeyPassword = ksProps.getProperty("keyPassword") ?: ksProps.getProperty("RELEASE_KEY_PASSWORD")
 
 android {
     namespace "ir.vinor.app"
     compileSdk 34
 
     defaultConfig {
-        // Keep applicationId constant across all build types/flavors
         applicationId "ir.vinor.app"
         minSdk 21
         targetSdk 34
         versionName readVersionName()
-        // Use GitHub run number if present to ensure monotonically increasing versionCode in CI
+        // Keep versionCode monotonic in CI using GITHUB_RUN_NUMBER
         def baseCode = computeVersionCode(versionName)
         def ciRunStr = System.getenv("GITHUB_RUN_NUMBER")
         def ciCode = (ciRunStr != null && ciRunStr.isInteger()) ? ciRunStr.toInteger() : null
@@ -63,32 +56,29 @@ android {
 
     signingConfigs {
         vinor {
-            storeFile vinorStorePath
-            storePassword vinorStorePassword
-            keyAlias vinorKeyAlias
-            keyPassword vinorKeyPassword
+            storeFile file(releaseStoreFile)
+            storePassword releaseStorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
         }
     }
 
     buildTypes {
+        direct {
+            initWith release
+            signingConfig signingConfigs.vinor
+            debuggable false
+        }
         release {
-            // Use the same signing for direct-install updates
             signingConfig signingConfigs.vinor
             minifyEnabled true
             shrinkResources true
             debuggable false
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
-        // Direct-install buildType: same as release, for side-loading on devices
-        direct {
-            initWith release
-            signingConfig signingConfigs.vinor
-            debuggable false
-        }
         debug {
-            // Use default Android debug keystore for developer convenience
             minifyEnabled false
-            // no explicit signingConfig -> uses default debug keystore
+            // keep same applicationId to avoid conflicts across variants
         }
     }
 
@@ -112,94 +102,22 @@ dependencies {
     implementation "com.squareup.okhttp3:okhttp-brotli:4.12.0"
 }
 
-// --- Helper: current computed versionCode at configuration time ---
-def currentVersionCode = computeVersionCode(readVersionName())
-
-// --- Pre-build checks and convenience tasks ---
-tasks.register("checkDirectInstallConstraints") {
+// Lazy validation: only when building direct/release
+tasks.register("checkDirectConstraints") {
     group = "verification"
-    description = "Checks applicationId, unified signing, and versionCode vs device for direct APK install."
     doLast {
-        // Keystore validations (fail-fast only when building)
-        if (!vinorStorePath.exists()) {
-            throw new GradleException("Keystore file not found at '${vinorStorePath}'. Create it or update key.properties (storeFile=app/keystore/vinor-release.jks).")
+        if (android.defaultConfig.applicationId != "ir.vinor.app") {
+            throw new GradleException("applicationId must be 'ir.vinor.app'")
         }
-        if (!vinorKeyAlias || vinorKeyAlias.trim().isEmpty()) {
-            throw new GradleException("Missing 'keyAlias' in key.properties (or local.properties).")
-        }
-        if (!vinorStorePassword || vinorStorePassword.trim().isEmpty()) {
-            throw new GradleException("Missing 'storePassword' in key.properties (or local.properties).")
-        }
-        if (!vinorKeyPassword || vinorKeyPassword.trim().isEmpty()) {
-            throw new GradleException("Missing 'keyPassword' in key.properties (or local.properties).")
-        }
-
-        def cfg = android.defaultConfig
-        if (cfg.applicationId != "ir.vinor.app") {
-            throw new GradleException("applicationId must be 'ir.vinor.app' but is '${cfg.applicationId}'")
-        }
-        def rel = android.buildTypes.release
-        def dir = android.buildTypes.findByName("direct")
-        if (rel.signingConfig == null || dir?.signingConfig == null) {
-            throw new GradleException("Both release and direct must define signingConfig 'vinor'.")
-        }
-        if (rel.signingConfig.name != "vinor" || dir.signingConfig.name != "vinor") {
-            throw new GradleException("release/direct signingConfig must be 'vinor'. Found: release=${rel.signingConfig.name}, direct=${dir.signingConfig.name}")
-        }
-        // Try to read the installed versionCode from a connected device via adb (optional)
-        try {
-            def proc = ["adb", "shell", "dumpsys", "package", "ir.vinor.app"].execute()
-            def output = new StringBuffer()
-            proc.consumeProcessOutput(output, new StringBuffer())
-            proc.waitForOrKill(4000)
-            def out = output.toString()
-            // Common pattern: "versionCode=123 targetSdk=..." or "versionCode=123 minSdk=..."
-            def m = (out =~ /versionCode=(\d+)/)
-            if (m.find()) {
-                def installedVc = m.group(1).toInteger()
-                if (currentVersionCode <= installedVc) {
-                    throw new GradleException("versionCode (${currentVersionCode}) must be greater than installed (${installedVc}). Update version.txt or set a higher version.")
-                }
-            } else {
-                logger.warn("Could not parse installed versionCode via adb; proceeding without device version check.")
-            }
-        } catch (ignored) {
-            logger.warn("adb not available or no device connected; skipping device version check.")
-        }
+        def sc = android.signingConfigs.findByName("vinor")
+        if (sc == null) throw new GradleException("signingConfigs.vinor missing")
+        if (sc.storeFile == null || !sc.storeFile.exists()) throw new GradleException("Keystore missing at ${sc.storeFile}")
+        if (!releaseStorePassword) throw new GradleException("storePassword missing")
+        if (!releaseKeyPassword) throw new GradleException("keyPassword missing")
+        if (!releaseKeyAlias) throw new GradleException("keyAlias missing")
     }
 }
-
-// Validate keystore lazily only when building assemble/assembleRelease/assembleDirect
-gradle.taskGraph.whenReady { graph ->
-    def needsSigning = graph.hasTask(":app:assemble")
-            || graph.hasTask(":app:assembleRelease")
-            || graph.hasTask(":app:assembleDirect")
-            || graph.hasTask(":app:assembleDirectRelease")
-    if (needsSigning) {
-        if (!vinorStorePath.exists()) {
-            throw new GradleException("Keystore file not found at '${vinorStorePath}'. Create it or update key.properties (storeFile=app/keystore/vinor-release.jks).")
-        }
-        if (!vinorKeyAlias || vinorKeyAlias.trim().isEmpty()) {
-            throw new GradleException("Missing 'keyAlias' in key.properties (or local.properties).")
-        }
-        if (!vinorStorePassword || vinorStorePassword.trim().isEmpty()) {
-            throw new GradleException("Missing 'storePassword' in key.properties (or local.properties).")
-        }
-        if (!vinorKeyPassword || vinorKeyPassword.trim().isEmpty()) {
-            throw new GradleException("Missing 'keyPassword' in key.properties (or local.properties).")
-        }
-    }
-}
-
-// Ensure checks run before building release/direct APKs
 tasks.matching { it.name in ["preReleaseBuild", "preDirectBuild"] }.configureEach {
-    dependsOn("checkDirectInstallConstraints")
-}
-
-// Convenience alias for assembling release APK
-tasks.register("assembleDirectRelease") {
-    group = "build"
-    description = "Assemble a direct APK for side-loading."
-    dependsOn("assembleDirect")
+    dependsOn("checkDirectConstraints")
 }
 
