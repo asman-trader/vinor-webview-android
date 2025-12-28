@@ -5,6 +5,13 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -100,5 +107,6 @@ EOF
           name: vinor-direct-apk
           path: app/build/outputs/apk/direct/*.apk
           if-no-files-found: error
+          retention-days: 14
 
 
