@@ -39,9 +39,10 @@ def releaseStoreFile = new File(releaseStorePathProp)
 if (!releaseStoreFile.isAbsolute()) {
     releaseStoreFile = new File(rootDir, releaseStorePathProp)
 }
-def releaseStorePassword = ksProps.getProperty("storePassword") ?: ksProps.getProperty("RELEASE_STORE_PASSWORD")
-def releaseKeyAlias = ksProps.getProperty("keyAlias", "vinor_release")
-def releaseKeyPassword = ksProps.getProperty("keyPassword") ?: ksProps.getProperty("RELEASE_KEY_PASSWORD")
+def trimOrNull = { s -> s == null ? null : s.toString().trim() }
+def releaseStorePassword = trimOrNull(ksProps.getProperty("storePassword") ?: ksProps.getProperty("RELEASE_STORE_PASSWORD"))
+def releaseKeyAlias = trimOrNull(ksProps.getProperty("keyAlias", "vinor_release")) ?: "vinor_release"
+def releaseKeyPassword = trimOrNull(ksProps.getProperty("keyPassword") ?: ksProps.getProperty("RELEASE_KEY_PASSWORD"))
 
 android {
     namespace "ir.vinor.app"
