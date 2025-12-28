@@ -136,21 +136,7 @@ jobs:
             exit 0
           fi
 
-          if [ -z "$GH_ADMIN_TOKEN" ]; then
-            echo "Signing secrets are missing and GH_ADMIN_TOKEN is not set. Add GH_ADMIN_TOKEN (PAT with repo scope) or set signing secrets manually."
-            exit 1
-          fi
-
-          echo "Bootstrapping signing secrets..."
-          sudo apt-get update -y >/dev/null 2>&1 || true
-          if ! command -v gh >/dev/null 2>&1; then
-            type -p curl >/dev/null || sudo apt-get install curl -y
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt-get update -y && sudo apt-get install gh -y
-          fi
-
+          echo "Signing secrets missing; generating ephemeral keystore for this run."
           rand() { tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32 ; echo ; }
           STORE_PASS="$(rand)"
           KEY_PASS="$(rand)"
@@ -166,18 +152,33 @@ jobs:
 
           B64="$(base64 -w 0 app/keystore/vinor-release.jks)"
 
-          echo "$GH_ADMIN_TOKEN" | gh auth login --with-token
-          gh secret set ANDROID_KEYSTORE_BASE64 -b"$B64"
-          gh secret set ANDROID_KEYSTORE_PASSWORD -b"$STORE_PASS"
-          gh secret set ANDROID_KEY_ALIAS -b"$KEY_ALIAS_VALUE"
-          gh secret set ANDROID_KEY_PASSWORD -b"$KEY_PASS"
-
+          # Export to this job's environment
           {
             echo "ANDROID_KEYSTORE_BASE64=$B64"
             echo "ANDROID_KEYSTORE_PASSWORD=$STORE_PASS"
             echo "ANDROID_KEY_ALIAS=$KEY_ALIAS_VALUE"
             echo "ANDROID_KEY_PASSWORD=$KEY_PASS"
           } >> "$GITHUB_ENV"
+
+          # If admin token exists, persist into repo secrets for future runs (optional)
+          if [ -n "$GH_ADMIN_TOKEN" ]; then
+            echo "Persisting secrets into repository via GH_ADMIN_TOKEN..."
+            sudo apt-get update -y >/dev/null 2>&1 || true
+            if ! command -v gh >/dev/null 2>&1; then
+              type -p curl >/dev/null || sudo apt-get install curl -y
+              curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+              sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+              sudo apt-get update -y && sudo apt-get install gh -y
+            fi
+            echo "$GH_ADMIN_TOKEN" | gh auth login --with-token
+            gh secret set ANDROID_KEYSTORE_BASE64 -b"$B64"
+            gh secret set ANDROID_KEYSTORE_PASSWORD -b"$STORE_PASS"
+            gh secret set ANDROID_KEY_ALIAS -b"$KEY_ALIAS_VALUE"
+            gh secret set ANDROID_KEY_PASSWORD -b"$KEY_PASS"
+          else
+            echo "GH_ADMIN_TOKEN not set; continuing with ephemeral secrets only."
+          fi
 
       - name: Prepare keystore directory
         run: mkdir -p app/keystore
