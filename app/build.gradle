@@ -64,7 +64,8 @@ android {
             storeFile releaseStoreFile
             storePassword releaseStorePassword
             keyAlias releaseKeyAlias
-            keyPassword releaseKeyPassword
+            keyPassword (releaseKeyPassword ?: releaseStorePassword)
+            storeType "JKS"
         }
     }
 
