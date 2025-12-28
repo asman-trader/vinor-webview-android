@@ -206,6 +206,24 @@ jobs:
             exit 1
           fi
 
+      - name: Detect keystore alias (auto-fix)
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ env.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -e
+          if [ -z "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "Missing ANDROID_KEYSTORE_PASSWORD"
+            exit 1
+          fi
+          ALIAS="$(keytool -list -v -storetype JKS -keystore app/keystore/vinor-release.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" 2>/dev/null | grep -m1 'Alias name:' | cut -d':' -f2 | sed 's/^[[:space:]]*//')"
+          if [ -n "$ALIAS" ]; then
+            echo "Detected keystore alias: $ALIAS"
+            echo "ANDROID_KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
+          else
+            echo "WARN: Unable to detect alias; keep provided ANDROID_KEY_ALIAS"
+          fi
+
       - name: Create runtime key.properties
         shell: bash
         env:
