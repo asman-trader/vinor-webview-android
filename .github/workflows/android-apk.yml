@@ -63,12 +63,12 @@ jobs:
             echo "Signing secrets are not fully set."
             exit 1
           fi
-          cat > key.properties <<EOF
-storeFile=app/keystore/vinor-release.jks
-storePassword=$ANDROID_KEYSTORE_PASSWORD
-keyAlias=$ANDROID_KEY_ALIAS
-keyPassword=$ANDROID_KEY_PASSWORD
-EOF
+          printf "%s\n" \
+            "storeFile=app/keystore/vinor-release.jks" \
+            "storePassword=$ANDROID_KEYSTORE_PASSWORD" \
+            "keyAlias=$ANDROID_KEY_ALIAS" \
+            "keyPassword=$ANDROID_KEY_PASSWORD" \
+          > key.properties
           echo "Created key.properties for runtime."
 
       - name: Make gradlew executable
