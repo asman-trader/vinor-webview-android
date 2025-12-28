@@ -73,7 +73,12 @@ EOF
         id: version
         shell: bash
         run: |
-          VERSION="$(tr -d '\r\n' < version.txt)"
+          # Read only first line, strip CR and all leading/trailing whitespace
+          VERSION="$(head -n1 version.txt | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          if [ -z "$VERSION" ]; then
+            echo "version.txt is empty; cannot derive version."
+            exit 1
+          fi
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Rename APK to include version
