@@ -143,7 +143,8 @@ jobs:
           echo "Signing secrets missing; generating ephemeral keystore for this run."
           rand() { tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32 ; echo ; }
           STORE_PASS="$(rand)"
-          KEY_PASS="$(rand)"
+          # Use same password for key and store to avoid decryption mismatch on some JDKs
+          KEY_PASS="$STORE_PASS"
           KEY_ALIAS_VALUE="${ANDROID_KEY_ALIAS:-vinor_release}"
 
           mkdir -p app/keystore
