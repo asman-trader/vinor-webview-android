@@ -29,16 +29,25 @@ set NEW_VERSION=%MAJOR%.%MINOR%.%PATCH%
 echo New version: %NEW_VERSION%
 
 REM ذخیره ورژن جدید
-echo %NEW_VERSION% > version.txt
+echo %NEW_VERSION%>version.txt
 
 REM اضافه کردن همه تغییرات
 git add -A
 
-REM ساخت کامیت
-git commit -m "Vinor Android WebView v%NEW_VERSION%"
+REM اگر تغییری برای کامیت نیست، از ساخت کامیت عبور کن
+git diff --cached --quiet && git diff --quiet && (
+    echo No changes to commit.
+) || (
+    REM ساخت کامیت
+    git commit -m "Vinor Android WebView v%NEW_VERSION%"
+)
+
+REM تشخیص نام شاخه جاری (در صورت عدم دسترسی، پیش‌فرض main)
+set "BRANCH=main"
+for /f "delims=" %%b in ('git rev-parse --abbrev-ref HEAD 2^>nul') do set "BRANCH=%%b"
 
 REM پوش به main
-git push origin main
+git push origin %BRANCH%
 
 echo ================================
 echo DONE - v%NEW_VERSION% pushed 🚀
