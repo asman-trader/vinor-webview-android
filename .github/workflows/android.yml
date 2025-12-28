@@ -93,7 +93,7 @@ jobs:
           retention-days: 7
 
   direct:
-    name: Build Direct APK (signed)
+    name: Build Release APK (signed)
     needs: changes
     if: needs.changes.outputs.release == 'true'
     permissions:
@@ -149,6 +149,7 @@ jobs:
           mkdir -p app/keystore
           keytool -genkeypair -v \
             -keystore app/keystore/vinor-release.jks \
+            -storetype JKS \
             -alias "$KEY_ALIAS_VALUE" \
             -keyalg RSA -keysize 2048 -validity 36500 \
             -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
@@ -175,11 +176,13 @@ jobs:
               echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
               sudo apt-get update -y && sudo apt-get install gh -y
             fi
-            echo "$GH_ADMIN_TOKEN" | gh auth login --with-token
-            gh secret set ANDROID_KEYSTORE_BASE64 -b"$B64"
-            gh secret set ANDROID_KEYSTORE_PASSWORD -b"$STORE_PASS"
-            gh secret set ANDROID_KEY_ALIAS -b"$KEY_ALIAS_VALUE"
-            gh secret set ANDROID_KEY_PASSWORD -b"$KEY_PASS"
+            echo "$GH_ADMIN_TOKEN" | gh auth login --with-token || true
+            { \
+              gh secret set ANDROID_KEYSTORE_BASE64 -b"$B64" && \
+              gh secret set ANDROID_KEYSTORE_PASSWORD -b"$STORE_PASS" && \
+              gh secret set ANDROID_KEY_ALIAS -b"$KEY_ALIAS_VALUE" && \
+              gh secret set ANDROID_KEY_PASSWORD -b"$KEY_PASS"; \
+            } || echo "WARN: Unable to persist repository secrets; continuing with ephemeral secrets."
           else
             echo "GH_ADMIN_TOKEN not set; continuing with ephemeral secrets only."
           fi
@@ -224,10 +227,16 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build Direct APK
+      - name: Build Release APK
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        run: ./gradlew assembleDirectRelease --stacktrace --no-daemon
+        run: ./gradlew assembleRelease --stacktrace --no-daemon
+
+      - name: (Optional) Build Release AAB
+        continue-on-error: true
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: ./gradlew bundleRelease --stacktrace --no-daemon
 
       - name: Read version name
         id: version
@@ -243,7 +252,7 @@ jobs:
       - name: Rename APK to include version
         shell: bash
         run: |
-          APK_DIR="app/build/outputs/apk/direct"
+          APK_DIR="app/build/outputs/apk/release"
           SRC_APK="$(ls -1 "$APK_DIR"/*.apk | head -n 1)"
           if [ -z "$SRC_APK" ]; then
             echo "No APK found in $APK_DIR"
@@ -257,8 +266,32 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vinor-direct-apk
-          path: app/build/outputs/apk/direct/*.apk
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+          retention-days: 14
+
+      - name: (Optional) Rename AAB to include version
+        continue-on-error: true
+        shell: bash
+        run: |
+          AAB_DIR="app/build/outputs/bundle/release"
+          if ls "$AAB_DIR"/*.aab >/dev/null 2>&1; then
+            SRC_AAB="$(ls -1 "$AAB_DIR"/*.aab | head -n 1)"
+            DEST_AAB="$AAB_DIR/vinor-${{ steps.version.outputs.VERSION }}.aab"
+            mv "$SRC_AAB" "$DEST_AAB"
+            echo "Renamed AAB to: $DEST_AAB"
+          else
+            echo "No AAB found; skipping rename."
+          fi
+
+      - name: (Optional) Upload AAB artifact
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: vinor-release-aab
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn
           retention-days: 14
 
 
