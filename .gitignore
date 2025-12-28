@@ -1,3 +1,15 @@
+key.properties
+*.iml
+.gradle/
+local.properties
+.idea/
+app/keystore/*.jks
+app/keystore/*.keystore
+app/keystore/*.p12
+app/keystore/*.pem
+app/keystore/*.pkcs12
+scripts/github-secrets.txt
+
 .gradle/
 **/.gradle/
 gradle-8.7/
