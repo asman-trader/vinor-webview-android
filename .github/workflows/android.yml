@@ -124,11 +124,12 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GH_ADMIN_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
+          set -euo pipefail
           need_bootstrap=0
-          [ -z "$ANDROID_KEYSTORE_BASE64" ] && need_bootstrap=1
-          [ -z "$ANDROID_KEYSTORE_PASSWORD" ] && need_bootstrap=1
-          [ -z "$ANDROID_KEY_ALIAS" ] && need_bootstrap=1
-          [ -z "$ANDROID_KEY_PASSWORD" ] && need_bootstrap=1
+          [ -z "${ANDROID_KEYSTORE_BASE64:-}" ] && need_bootstrap=1
+          [ -z "${ANDROID_KEYSTORE_PASSWORD:-}" ] && need_bootstrap=1
+          [ -z "${ANDROID_KEY_ALIAS:-}" ] && need_bootstrap=1
+          [ -z "${ANDROID_KEY_PASSWORD:-}" ] && need_bootstrap=1
 
           if [ "$need_bootstrap" = "0" ]; then
             {
@@ -142,9 +143,10 @@ jobs:
 
           echo "Signing secrets missing; generating ephemeral keystore for this run."
           rand() { tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32 ; echo ; }
-          STORE_PASS="$(rand)"
+          PASS="$(rand)"
+          STORE_PASS="$PASS"
           # Use same password for key and store to avoid decryption mismatch on some JDKs
-          KEY_PASS="$STORE_PASS"
+          KEY_PASS="$PASS"
           KEY_ALIAS_VALUE="${ANDROID_KEY_ALIAS:-vinor_release}"
 
           mkdir -p app/keystore
@@ -196,15 +198,25 @@ jobs:
         env:
           ANDROID_KEYSTORE_BASE64: ${{ env.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
             echo "ANDROID_KEYSTORE_BASE64 is not set."
             exit 1
           fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/keystore/vinor-release.jks
+          mkdir -p app/keystore
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/keystore/vinor-release.jks
           if [ ! -s app/keystore/vinor-release.jks ]; then
             echo "Decoded keystore is empty or missing."
             exit 1
           fi
+
+      - name: Verify keystore readability
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ env.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keytool -list -keystore app/keystore/vinor-release.jks -storetype JKS -storepass "$ANDROID_KEYSTORE_PASSWORD" >/dev/null
 
       - name: Detect keystore alias (auto-fix)
         shell: bash
