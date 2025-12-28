@@ -27,6 +27,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   changes:
@@ -95,6 +96,9 @@ jobs:
     name: Build Direct APK (signed)
     needs: changes
     if: needs.changes.outputs.release == 'true'
+    permissions:
+      contents: read
+      actions: write
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -185,6 +189,8 @@ jobs:
 
       - name: Decode keystore from secret
         shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ env.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "ANDROID_KEYSTORE_BASE64 is not set."
@@ -198,6 +204,10 @@ jobs:
 
       - name: Create runtime key.properties
         shell: bash
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ env.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ env.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ env.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
             echo "Signing secrets are not fully set."
