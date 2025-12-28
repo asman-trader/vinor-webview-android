@@ -33,7 +33,12 @@ def loadKeystoreProps() {
     return props
 }
 def ksProps = loadKeystoreProps()
-def releaseStoreFile = ksProps.getProperty("storeFile", "${rootDir}/app/keystore/vinor-release.jks")
+// Resolve keystore path: support relative (to rootDir) and absolute
+def releaseStorePathProp = ksProps.getProperty("storeFile", "app/keystore/vinor-release.jks")
+def releaseStoreFile = new File(releaseStorePathProp)
+if (!releaseStoreFile.isAbsolute()) {
+    releaseStoreFile = new File(rootDir, releaseStorePathProp)
+}
 def releaseStorePassword = ksProps.getProperty("storePassword") ?: ksProps.getProperty("RELEASE_STORE_PASSWORD")
 def releaseKeyAlias = ksProps.getProperty("keyAlias", "vinor_release")
 def releaseKeyPassword = ksProps.getProperty("keyPassword") ?: ksProps.getProperty("RELEASE_KEY_PASSWORD")
@@ -56,7 +61,7 @@ android {
 
     signingConfigs {
         vinor {
-            storeFile file(releaseStoreFile)
+            storeFile releaseStoreFile
             storePassword releaseStorePassword
             keyAlias releaseKeyAlias
             keyPassword releaseKeyPassword
