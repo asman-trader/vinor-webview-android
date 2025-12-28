@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    paths:
+      - 'version.txt'
+      - '.github/workflows/android-apk.yml'
 
 concurrency:
   group: android-apk-${{ github.ref }}
