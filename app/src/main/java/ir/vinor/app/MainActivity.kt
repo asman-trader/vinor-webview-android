@@ -28,6 +28,7 @@ import okhttp3.CacheControl
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.brotli.BrotliInterceptor
 import java.io.File
 import java.io.InputStream
@@ -49,7 +50,12 @@ class MainActivity : AppCompatActivity() {
             if (!isOnline()) {
                 reqBuilder.cacheControl(CacheControl.FORCE_CACHE)
             }
-            val resp = httpClient.newCall(reqBuilder.build()).execute()
+            val resp = if (shouldPreferCache(request)) {
+                fetchCacheFirst(reqBuilder)
+            } else {
+                httpClient.newCall(reqBuilder.build()).execute()
+            }
+            if (resp == null) return offlineIfNeeded(request)
             if (resp.code == 504) return offlineIfNeeded(request)
             val body = resp.body ?: return null
             val mime = resp.header("Content-Type")?.substringBefore(";") ?: guessMime(url)
@@ -65,6 +71,42 @@ class MainActivity : AppCompatActivity() {
             response
         } catch (_: Exception) {
             offlineIfNeeded(request)
+        }
+    }
+
+    private fun shouldPreferCache(request: WebResourceRequest): Boolean {
+        val url = request.url.toString()
+        if (request.method != "GET") return false
+        val host = request.url.host ?: return false
+        val isTargetHost = host == targetHost
+        return isTargetHost && isStaticAsset(url)
+    }
+
+    private fun isStaticAsset(url: String): Boolean {
+        return url.endsWith(".js") || url.endsWith(".css") ||
+                url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".jpeg") ||
+                url.endsWith(".webp") || url.endsWith(".gif") || url.endsWith(".svg") ||
+                url.endsWith(".woff") || url.endsWith(".woff2") || url.endsWith(".ttf")
+    }
+
+    private fun fetchCacheFirst(reqBuilder: Request.Builder): Response? {
+        // Try cache instantly; if miss (504) then go network
+        return try {
+            val cacheResp = httpClient.newCall(
+                reqBuilder.cacheControl(CacheControl.FORCE_CACHE).build()
+            ).execute()
+            if (cacheResp.isSuccessful && cacheResp.body != null) {
+                cacheResp
+            } else {
+                cacheResp.close()
+                httpClient.newCall(reqBuilder.cacheControl(CacheControl.FORCE_NETWORK).build()).execute()
+            }
+        } catch (_: Exception) {
+            try {
+                httpClient.newCall(reqBuilder.cacheControl(CacheControl.FORCE_NETWORK).build()).execute()
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 
