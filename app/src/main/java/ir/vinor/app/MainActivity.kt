@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -51,6 +52,8 @@ class MainActivity : AppCompatActivity() {
     } // ~2MB small-asset hot cache
     private var loadStartMs: Long = 0L
     private var pageCommitMs: Long = 0L
+    private var loaderRunnable: Runnable? = null
+    private val loaderDelayMs = 150L
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
@@ -352,6 +355,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun configureWebView() {
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        webView.setBackgroundColor(Color.parseColor("#F5F5F5"))
 
         with(webView.settings) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -409,14 +413,14 @@ class MainActivity : AppCompatActivity() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 loadStartMs = System.currentTimeMillis()
-                binding.loader.visibility = View.VISIBLE
-                binding.loader.alpha = 1f
+                scheduleLoader()
             }
 
             override fun onPageCommitVisible(view: WebView?, url: String?) {
                 super.onPageCommitVisible(view, url)
                 pageCommitMs = System.currentTimeMillis()
                 logPerf("onPageCommitVisible", url)
+                cancelLoaderSchedule()
                 hideLoader()
             }
 
@@ -424,6 +428,8 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 pendingOtp?.let { injectOtpToWebView(it) }
                 logPerf("onPageFinished", url)
+                cancelLoaderSchedule()
+                hideLoader()
             }
 
             override fun onReceivedError(
@@ -453,6 +459,21 @@ class MainActivity : AppCompatActivity() {
                 loader.alpha = 1f
             }.start()
         }
+    }
+
+    private fun scheduleLoader() {
+        cancelLoaderSchedule()
+        loaderRunnable = Runnable {
+            if (binding.loader.visibility != View.VISIBLE) {
+                binding.loader.alpha = 1f
+                binding.loader.visibility = View.VISIBLE
+            }
+        }.also { binding.loader.postDelayed(it, loaderDelayMs) }
+    }
+
+    private fun cancelLoaderSchedule() {
+        loaderRunnable?.let { binding.loader.removeCallbacks(it) }
+        loaderRunnable = null
     }
 
     private fun logPerf(event: String, url: String?) {
