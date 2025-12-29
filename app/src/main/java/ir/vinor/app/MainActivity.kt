@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -53,7 +54,7 @@ class MainActivity : AppCompatActivity() {
     private var loadStartMs: Long = 0L
     private var pageCommitMs: Long = 0L
     private var loaderRunnable: Runnable? = null
-    private val loaderDelayMs = 150L
+    private val loaderDelayMs = 0L // show immediately to mask flash
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
@@ -226,6 +227,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         webView = WebViewProvider.attach(this, binding.webViewContainer)
+        binding.retryButton.setOnClickListener {
+            hideErrorBanner()
+            scheduleLoader()
+            webView.reload()
+        }
 
         // Prepare OkHttp cache (100 MB) برای کش بهتر تصاویر/ویدیو
         val cacheDir = File(cacheDir, "http")
@@ -355,7 +361,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun configureWebView() {
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        webView.setBackgroundColor(Color.parseColor("#F5F5F5"))
+        webView.setBackgroundColor(Color.TRANSPARENT)
 
         with(webView.settings) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -413,6 +419,8 @@ class MainActivity : AppCompatActivity() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 loadStartMs = System.currentTimeMillis()
+                hideErrorBanner()
+                captureSnapshot()
                 scheduleLoader()
             }
 
@@ -422,6 +430,7 @@ class MainActivity : AppCompatActivity() {
                 logPerf("onPageCommitVisible", url)
                 cancelLoaderSchedule()
                 hideLoader()
+                clearSnapshot()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -430,6 +439,7 @@ class MainActivity : AppCompatActivity() {
                 logPerf("onPageFinished", url)
                 cancelLoaderSchedule()
                 hideLoader()
+                clearSnapshot()
             }
 
             override fun onReceivedError(
@@ -438,9 +448,11 @@ class MainActivity : AppCompatActivity() {
                 error: android.webkit.WebResourceError?
             ) {
                 super.onReceivedError(view, request, error)
-                // Quick retry for main frame errors
                 if (request?.isForMainFrame == true) {
-                    view?.postDelayed({ view.reload() }, 500)
+                    showErrorBanner(error?.description?.toString() ?: "خطا در بارگذاری")
+                    cancelLoaderSchedule()
+                    hideLoader()
+                    clearSnapshot()
                 }
             }
 
@@ -474,6 +486,42 @@ class MainActivity : AppCompatActivity() {
     private fun cancelLoaderSchedule() {
         loaderRunnable?.let { binding.loader.removeCallbacks(it) }
         loaderRunnable = null
+    }
+
+    private fun captureSnapshot() {
+        val w = webView.width
+        val h = webView.height
+        if (w <= 0 || h <= 0) return
+        runCatching {
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+            webView.draw(canvas)
+            binding.snapshotOverlay.setImageBitmap(bmp)
+            binding.snapshotOverlay.visibility = View.VISIBLE
+        }
+    }
+
+    private fun clearSnapshot() {
+        binding.snapshotOverlay.setImageDrawable(null)
+        binding.snapshotOverlay.visibility = View.GONE
+    }
+
+    private fun showErrorBanner(message: String) {
+        binding.errorText.text = message
+        if (binding.errorBanner.visibility != View.VISIBLE) {
+            binding.errorBanner.alpha = 0f
+            binding.errorBanner.visibility = View.VISIBLE
+            binding.errorBanner.animate().alpha(1f).setDuration(180).start()
+        }
+    }
+
+    private fun hideErrorBanner() {
+        if (binding.errorBanner.visibility == View.VISIBLE) {
+            binding.errorBanner.animate().alpha(0f).setDuration(180).withEndAction {
+                binding.errorBanner.visibility = View.GONE
+                binding.errorBanner.alpha = 1f
+            }.start()
+        }
     }
 
     private fun logPerf(event: String, url: String?) {

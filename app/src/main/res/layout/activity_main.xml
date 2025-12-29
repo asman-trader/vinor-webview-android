@@ -8,11 +8,21 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Snapshot overlay to mask flash during navigation; visibility managed in code -->
+    <ImageView
+        android:id="@+id/snapshotOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:adjustViewBounds="true"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- Loader overlay (semi-transparent) keeps previous page visible underneath -->
     <FrameLayout
         android:id="@+id/loader"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F5F5"
+        android:background="#E6111827"
         android:visibility="visible">
 
         <ProgressBar
@@ -22,6 +32,33 @@
             android:layout_height="64dp"
             android:layout_gravity="center" />
     </FrameLayout>
+
+    <!-- Error banner; shown on load failures without blanking the page -->
+    <LinearLayout
+        android:id="@+id/errorBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:background="#CCB00020"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/errorText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:text="خطا در بارگذاری" />
+
+        <Button
+            android:id="@+id/retryButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="تلاش مجدد" />
+    </LinearLayout>
 
 </FrameLayout>
 
