@@ -3,8 +3,14 @@ package ir.vinor.app
 import android.app.Activity
 import android.content.Context
 import android.content.MutableContextWrapper
+import android.graphics.Color
+import android.os.Build
 import android.view.ViewGroup
+import android.webkit.WebSettings
 import android.webkit.WebView
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
+import androidx.webkit.WebViewCompat
 
 object WebViewProvider {
     @Volatile
@@ -14,7 +20,7 @@ object WebViewProvider {
         if (cachedWebView != null) return
         synchronized(this) {
             if (cachedWebView == null) {
-                cachedWebView = createWebView(context.applicationContext)
+                cachedWebView = createWebView(context.applicationContext).also { warmupInstance(context, it) }
             }
         }
     }
@@ -38,7 +44,44 @@ object WebViewProvider {
 
     private fun createWebView(appContext: Context): WebView {
         val ctx = MutableContextWrapper(appContext)
-        return WebView(ctx)
+        return WebView(ctx).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            with(settings) {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                databaseEnabled = true
+                cacheMode = WebSettings.LOAD_DEFAULT
+                loadsImagesAutomatically = true
+                mediaPlaybackRequiresUserGesture = false
+                useWideViewPort = true
+                loadWithOverviewMode = true
+                builtInZoomControls = false
+                displayZoomControls = false
+                allowContentAccess = true
+                allowFileAccess = false
+                textZoom = 100
+                mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                setSupportMultipleWindows(false)
+                runCatching { javaClass.getMethod("setAppCacheEnabled", Boolean::class.java).invoke(this, true) }
+            }
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.OFF_SCREEN_PRERASTER)) {
+                WebSettingsCompat.setOffscreenPreRaster(settings, true)
+            }
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+            } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
+            }
+        }
+    }
+
+    private fun warmupInstance(context: Context, webView: WebView) {
+        // Start Safe Browsing if available
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.START_SAFE_BROWSING)) {
+            WebViewCompat.startSafeBrowsing(context) { /* ignore result */ }
+        }
+        // Preload a lightweight page to warm Chromium
+        runCatching { webView.loadUrl("https://vinor.ir") }
     }
 }
 

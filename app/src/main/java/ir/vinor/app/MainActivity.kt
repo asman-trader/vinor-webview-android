@@ -22,6 +22,11 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.ValueCallback
+import androidx.webkit.ServiceWorkerClientCompat
+import androidx.webkit.ServiceWorkerControllerCompat
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -29,6 +34,8 @@ import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Status
 import ir.vinor.app.databinding.ActivityMainBinding
+import androidx.webkit.WebViewRenderProcessClient
+import androidx.webkit.WebViewRenderProcess
 import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.ConnectionPool
@@ -55,6 +62,7 @@ class MainActivity : AppCompatActivity() {
     private var pageCommitMs: Long = 0L
     private var loaderRunnable: Runnable? = null
     private val loaderDelayMs = 0L // show immediately to mask flash
+    private var rendererRestartedOnce = false
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
@@ -232,6 +240,32 @@ class MainActivity : AppCompatActivity() {
             scheduleLoader()
             webView.reload()
         }
+        binding.debugButton.setOnClickListener {
+            Log.d("VinorWebView", "t0=$loadStartMs, commit=$pageCommitMs, now=${System.currentTimeMillis()}")
+        }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEBVIEW_RENDERER_CLIENT_BASIC)) {
+            WebViewCompat.setWebViewRenderProcessClient(
+                this,
+                object : WebViewRenderProcessClient() {
+                    override fun onRenderProcessUnresponsive(view: WebView, renderer: WebViewRenderProcess?) {
+                        Log.w("VinorWebView", "Renderer unresponsive; reloading")
+                        view.post { view.reload() }
+                    }
+
+                    override fun onRenderProcessResponsive(view: WebView, renderer: WebViewRenderProcess?) {
+                        // no-op
+                    }
+
+                    override fun onRenderProcessGone(view: WebView, detail: androidx.webkit.WebViewRenderProcessClient.RenderProcessGoneDetail) {
+                        if (rendererRestartedOnce) return
+                        rendererRestartedOnce = true
+                        Log.w("VinorWebView", "Renderer crashed; recreating WebView")
+                        WebViewProvider.prewarm(this@MainActivity)
+                        recreate()
+                    }
+                }
+            )
+        }
 
         // Prepare OkHttp cache (100 MB) برای کش بهتر تصاویر/ویدیو
         val cacheDir = File(cacheDir, "http")
@@ -321,6 +355,21 @@ class MainActivity : AppCompatActivity() {
                 }
             })
         }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE)) {
+            val swController = ServiceWorkerControllerCompat.getInstance()
+            swController.serviceWorkerWebSettings.apply {
+                setAllowContentAccess(true)
+                setAllowFileAccess(false)
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.OFF_SCREEN_PRERASTER)) {
+                    WebSettingsCompat.setOffscreenPreRaster(this, true)
+                }
+            }
+            swController.setServiceWorkerClient(object : ServiceWorkerClientCompat() {
+                override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+                    return interceptToOkHttp(request)
+                }
+            })
+        }
     }
 
     private var isSmsReceiverRegistered: Boolean = false
@@ -383,6 +432,20 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             setSupportMultipleWindows(false)
             runCatching { javaClass.getMethod("setAppCacheEnabled", Boolean::class.java).invoke(this, true) }
+        }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.OFF_SCREEN_PRERASTER)) {
+            WebSettingsCompat.setOffscreenPreRaster(webView.settings, true)
+        }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+            WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, true)
+        } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+            WebSettingsCompat.setForceDark(webView.settings, WebSettingsCompat.FORCE_DARK_ON)
+        }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.START_SAFE_BROWSING)) {
+            WebViewCompat.startSafeBrowsing(this, null)
+        }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ALLOWLIST)) {
+            WebViewCompat.setSafeBrowsingAllowlist(listOf(targetHost)) { /* ignore */ }
         }
 
         webView.webChromeClient = object : WebChromeClient() {
