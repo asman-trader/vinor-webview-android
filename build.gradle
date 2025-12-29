@@ -1,4 +1,5 @@
 plugins {
-    id 'com.android.application' version '8.5.2' apply false
+    // Use widely-available AGP to avoid plugin resolution failures in CI
+    id 'com.android.application' version '8.4.2' apply false
     id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
 }

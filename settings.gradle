@@ -4,6 +4,17 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+    // Map plugin IDs to coordinates to avoid plugin-portal resolution issues in CI
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.android.application") {
+                useModule("com.android.tools.build:gradle:${requested.version}")
+            }
+            if (requested.id.id == "org.jetbrains.kotlin.android") {
+                useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:${requested.version}")
+            }
+        }
+    }
 }
 
 dependencyResolutionManagement {
