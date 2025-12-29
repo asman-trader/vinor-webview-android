@@ -16,6 +16,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.ValueCallback
+import android.util.LruCache
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -32,6 +33,7 @@ import okhttp3.Response
 import okhttp3.brotli.BrotliInterceptor
 import java.io.File
 import java.io.InputStream
+import java.io.ByteArrayInputStream
 import java.net.InetAddress
 import java.util.concurrent.TimeUnit
 
@@ -40,12 +42,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val targetUrl = "https://vinor.ir"
     private val targetHost: String = Uri.parse(targetUrl).host ?: "vinor.ir"
+    private val memoryCache = LruCache<String, ByteArray>(2 * 1024 * 1024) // ~2MB small-asset hot cache
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
         if (request.method != "GET") return null
         if (!(url.startsWith("http://") || url.startsWith("https://"))) return null
         return try {
+            memoryCache.get(url)?.let { bytes ->
+                return WebResourceResponse(
+                    guessMime(url),
+                    "utf-8",
+                    ByteArrayInputStream(bytes)
+                ).apply { setStatusCodeAndReasonPhrase(200, "OK") }
+            }
             val reqBuilder = Request.Builder().url(url)
             if (!isOnline()) {
                 reqBuilder.cacheControl(CacheControl.FORCE_CACHE)
@@ -60,7 +70,15 @@ class MainActivity : AppCompatActivity() {
             val body = resp.body ?: return null
             val mime = resp.header("Content-Type")?.substringBefore(";") ?: guessMime(url)
             val encoding = "utf-8"
-            val stream: InputStream = body.byteStream()
+            val contentLength = body.contentLength()
+            val canMemCache = shouldMemCache(request, url, contentLength)
+            val bodyBytes = if (canMemCache) runCatching { body.bytes() }.getOrNull() else null
+            val stream: InputStream = if (bodyBytes != null) {
+                memoryCache.put(url, bodyBytes)
+                ByteArrayInputStream(bodyBytes)
+            } else {
+                body.byteStream()
+            }
             val response = WebResourceResponse(mime, encoding, stream)
             val headers = HashMap<String, String>()
             resp.headers.names().forEach { name ->
@@ -80,6 +98,12 @@ class MainActivity : AppCompatActivity() {
         val host = request.url.host ?: return false
         val isTargetHost = host == targetHost
         return isTargetHost && isStaticAsset(url)
+    }
+
+    private fun shouldMemCache(request: WebResourceRequest, url: String, contentLength: Long): Boolean {
+        if (!shouldPreferCache(request)) return false
+        if (contentLength in 1..(256 * 1024)) return true
+        return false
     }
 
     private fun isStaticAsset(url: String): Boolean {
