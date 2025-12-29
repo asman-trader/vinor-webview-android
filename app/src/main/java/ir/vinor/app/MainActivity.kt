@@ -42,7 +42,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val targetUrl = "https://vinor.ir"
     private val targetHost: String = Uri.parse(targetUrl).host ?: "vinor.ir"
-    private val memoryCache = LruCache<String, ByteArray>(2 * 1024 * 1024) // ~2MB small-asset hot cache
+    private val memoryCache = object : LruCache<String, ByteArray>(2 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: ByteArray): Int = value.size // real bytes, not entry count
+    } // ~2MB small-asset hot cache
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
@@ -102,7 +104,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun shouldMemCache(request: WebResourceRequest, url: String, contentLength: Long): Boolean {
         if (!shouldPreferCache(request)) return false
+        // Guard against unknown sizes; keep only reasonably small assets
         if (contentLength in 1..(256 * 1024)) return true
+        // Unknown length (-1) often means chunked; avoid to prevent OOM
         return false
     }
 
