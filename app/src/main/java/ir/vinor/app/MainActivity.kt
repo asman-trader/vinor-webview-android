@@ -5,18 +5,21 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import android.util.LruCache
 import android.view.View
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.ValueCallback
-import android.util.LruCache
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -40,11 +43,14 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var webView: WebView
     private val targetUrl = "https://vinor.ir"
     private val targetHost: String = Uri.parse(targetUrl).host ?: "vinor.ir"
     private val memoryCache = object : LruCache<String, ByteArray>(2 * 1024 * 1024) {
         override fun sizeOf(key: String, value: ByteArray): Int = value.size // real bytes, not entry count
     } // ~2MB small-asset hot cache
+    private var loadStartMs: Long = 0L
+    private var pageCommitMs: Long = 0L
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
@@ -216,6 +222,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        webView = WebViewProvider.attach(this, binding.webViewContainer)
+
         // Prepare OkHttp cache (100 MB) برای کش بهتر تصاویر/ویدیو
         val cacheDir = File(cacheDir, "http")
         val cache = Cache(cacheDir, 100L * 1024L * 1024L)
@@ -290,7 +298,8 @@ class MainActivity : AppCompatActivity() {
             })
         } catch (_: Exception) {}
 
-        binding.webView.loadUrl(targetUrl)
+        loadStartMs = System.currentTimeMillis()
+        webView.loadUrl(targetUrl)
 
         // Start SMS User Consent (no SMS permission required)
         SmsRetriever.getClient(this).startSmsUserConsent(null)
@@ -334,37 +343,46 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        if (binding.webView.canGoBack()) {
-            binding.webView.goBack()
+        if (webView.canGoBack()) {
+            webView.goBack()
         } else {
             super.onBackPressed()
         }
     }
 
     private fun configureWebView() {
-        // Use hardware acceleration and pre-raster for smoother first paint
-        binding.webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
-        with(binding.webView.settings) {
+        with(webView.settings) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 offscreenPreRaster = true // render first screen before display to reduce perceived LCP
             }
             javaScriptEnabled = true
             domStorageEnabled = true
+            databaseEnabled = true
+            cacheMode = WebSettings.LOAD_DEFAULT
             loadsImagesAutomatically = true
+            mediaPlaybackRequiresUserGesture = false
             useWideViewPort = true
             loadWithOverviewMode = true
             builtInZoomControls = true
             displayZoomControls = false
-            cacheMode = if (isOnline()) WebSettings.LOAD_DEFAULT else WebSettings.LOAD_CACHE_ELSE_NETWORK
-            databaseEnabled = true
             allowContentAccess = true
             allowFileAccess = false
             textZoom = 100
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            setSupportMultipleWindows(false)
+            runCatching { javaClass.getMethod("setAppCacheEnabled", Boolean::class.java).invoke(this, true) }
         }
 
-        binding.webView.webViewClient = object : WebViewClient() {
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                super.onProgressChanged(view, newProgress)
+                if (newProgress >= 60) hideLoader()
+            }
+        }
+
+        webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest?
@@ -378,9 +396,8 @@ class MainActivity : AppCompatActivity() {
                     handleSmsLink(url)
                     return true
                 }
-                // Let WebView handle http/https internally to avoid double navigation and extra round-trips
+                // Keep internal navigation inside WebView; external/custom schemes go out
                 if (url.startsWith("http://") || url.startsWith("https://")) return false
-                // For any other custom scheme, try to hand off; fall back to WebView if it cannot be handled
                 return try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     true
@@ -389,9 +406,36 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                loadStartMs = System.currentTimeMillis()
+                binding.loader.visibility = View.VISIBLE
+                binding.loader.alpha = 1f
+            }
+
+            override fun onPageCommitVisible(view: WebView?, url: String?) {
+                super.onPageCommitVisible(view, url)
+                pageCommitMs = System.currentTimeMillis()
+                logPerf("onPageCommitVisible", url)
+                hideLoader()
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 pendingOtp?.let { injectOtpToWebView(it) }
+                logPerf("onPageFinished", url)
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: android.webkit.WebResourceError?
+            ) {
+                super.onReceivedError(view, request, error)
+                // Quick retry for main frame errors
+                if (request?.isForMainFrame == true) {
+                    view?.postDelayed({ view.reload() }, 500)
+                }
             }
 
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
@@ -399,6 +443,23 @@ class MainActivity : AppCompatActivity() {
                 return interceptToOkHttp(request) ?: super.shouldInterceptRequest(view, request)
             }
         }
+    }
+
+    private fun hideLoader() {
+        val loader = binding.loader
+        if (loader.visibility == View.VISIBLE) {
+            loader.animate().alpha(0f).setDuration(200).withEndAction {
+                loader.visibility = View.GONE
+                loader.alpha = 1f
+            }.start()
+        }
+    }
+
+    private fun logPerf(event: String, url: String?) {
+        val now = System.currentTimeMillis()
+        val start = loadStartMs.takeIf { it > 0 } ?: now
+        val elapsed = now - start
+        Log.d("VinorWebView", "$event at ${elapsed}ms url=${url.orEmpty()}")
     }
 
     private fun handleSmsLink(url: String) {
@@ -416,7 +477,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun onOtpReceived(code: String) {
         pendingOtp = code
-        binding.webView.post { injectOtpToWebView(code) }
+        webView.post { injectOtpToWebView(code) }
     }
 
     private fun injectOtpToWebView(code: String) {
@@ -454,7 +515,7 @@ class MainActivity : AppCompatActivity() {
             })();
         """.trimIndent()
 
-        binding.webView.evaluateJavascript(js, ValueCallback { result ->
+        webView.evaluateJavascript(js, ValueCallback { result ->
             if (result?.contains("ok") == true) {
                 pendingOtp = null
             }
