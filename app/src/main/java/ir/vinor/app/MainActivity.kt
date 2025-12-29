@@ -34,8 +34,6 @@ import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Status
 import ir.vinor.app.databinding.ActivityMainBinding
-import androidx.webkit.WebViewRenderProcessClient
-import androidx.webkit.WebViewRenderProcess
 import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.ConnectionPool
@@ -243,29 +241,6 @@ class MainActivity : AppCompatActivity() {
         binding.debugButton.setOnClickListener {
             Log.d("VinorWebView", "t0=$loadStartMs, commit=$pageCommitMs, now=${System.currentTimeMillis()}")
         }
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEBVIEW_RENDERER_CLIENT_BASIC)) {
-            WebViewCompat.setWebViewRenderProcessClient(
-                this,
-                object : WebViewRenderProcessClient() {
-                    override fun onRenderProcessUnresponsive(view: WebView, renderer: WebViewRenderProcess?) {
-                        Log.w("VinorWebView", "Renderer unresponsive; reloading")
-                        view.post { view.reload() }
-                    }
-
-                    override fun onRenderProcessResponsive(view: WebView, renderer: WebViewRenderProcess?) {
-                        // no-op
-                    }
-
-                    override fun onRenderProcessGone(view: WebView, detail: androidx.webkit.WebViewRenderProcessClient.RenderProcessGoneDetail) {
-                        if (rendererRestartedOnce) return
-                        rendererRestartedOnce = true
-                        Log.w("VinorWebView", "Renderer crashed; recreating WebView")
-                        WebViewProvider.prewarm(this@MainActivity)
-                        recreate()
-                    }
-                }
-            )
-        }
 
         // Prepare OkHttp cache (100 MB) برای کش بهتر تصاویر/ویدیو
         val cacheDir = File(cacheDir, "http")
@@ -360,9 +335,6 @@ class MainActivity : AppCompatActivity() {
             swController.serviceWorkerWebSettings.apply {
                 setAllowContentAccess(true)
                 setAllowFileAccess(false)
-                if (WebViewFeature.isFeatureSupported(WebViewFeature.OFF_SCREEN_PRERASTER)) {
-                    WebSettingsCompat.setOffscreenPreRaster(this, true)
-                }
             }
             swController.setServiceWorkerClient(object : ServiceWorkerClientCompat() {
                 override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
@@ -445,7 +417,7 @@ class MainActivity : AppCompatActivity() {
             WebViewCompat.startSafeBrowsing(this, null)
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ALLOWLIST)) {
-            WebViewCompat.setSafeBrowsingAllowlist(listOf(targetHost)) { /* ignore */ }
+            WebViewCompat.setSafeBrowsingAllowlist(setOf(targetHost)) { /* ignore */ }
         }
 
         webView.webChromeClient = object : WebChromeClient() {
