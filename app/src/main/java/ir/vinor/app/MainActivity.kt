@@ -25,17 +25,20 @@ import com.google.android.gms.common.api.Status
 import ir.vinor.app.databinding.ActivityMainBinding
 import okhttp3.Cache
 import okhttp3.CacheControl
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.brotli.BrotliInterceptor
 import java.io.File
 import java.io.InputStream
+import java.net.InetAddress
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val targetUrl = "https://vinor.ir"
+    private val targetHost: String = Uri.parse(targetUrl).host ?: "vinor.ir"
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
@@ -47,7 +50,7 @@ class MainActivity : AppCompatActivity() {
                 reqBuilder.cacheControl(CacheControl.FORCE_CACHE)
             }
             val resp = httpClient.newCall(reqBuilder.build()).execute()
-            if (resp.code == 504) return null
+            if (resp.code == 504) return offlineIfNeeded(request)
             val body = resp.body ?: return null
             val mime = resp.header("Content-Type")?.substringBefore(";") ?: guessMime(url)
             val encoding = "utf-8"
@@ -61,7 +64,7 @@ class MainActivity : AppCompatActivity() {
             response.setStatusCodeAndReasonPhrase(resp.code, resp.message)
             response
         } catch (_: Exception) {
-            null
+            offlineIfNeeded(request)
         }
     }
 
@@ -146,6 +149,10 @@ class MainActivity : AppCompatActivity() {
         val cache = Cache(cacheDir, 100L * 1024L * 1024L)
         httpClient = OkHttpClient.Builder()
             .cache(cache)
+            .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
+            .connectTimeout(7, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
             // Enable Brotli to reduce payload sizes (server permitting)
             .addInterceptor(BrotliInterceptor)
             // Add default caching for static/media/HTML when server doesn't set it
@@ -204,6 +211,7 @@ class MainActivity : AppCompatActivity() {
 
         // Warm-up connection (DNS/TLS) in background to reduce TTFB on first load
         try {
+            InetAddress.getByName(targetHost)
             httpClient.newCall(Request.Builder().url(targetUrl).head().build()).enqueue(object : okhttp3.Callback {
                 override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
                 override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.close() }
@@ -388,6 +396,20 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         } catch (_: Exception) {
             // No dialer present; ignore
+        }
+    }
+
+    private fun offlineIfNeeded(request: WebResourceRequest): WebResourceResponse? {
+        if (isOnline()) return null
+        val url = request.url
+        if (url.host != targetHost || request.method != "GET") return null
+        return try {
+            val stream = assets.open("offline.html")
+            WebResourceResponse("text/html", "utf-8", stream).apply {
+                setStatusCodeAndReasonPhrase(200, "OK")
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 }
