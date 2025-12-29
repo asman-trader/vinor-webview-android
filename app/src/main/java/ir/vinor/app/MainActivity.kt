@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.util.Log
 import android.util.LruCache
 import android.view.View
+import android.widget.Toast
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
 import android.webkit.WebChromeClient
@@ -22,6 +23,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.ValueCallback
+import androidx.activity.OnBackPressedCallback
 import androidx.webkit.ServiceWorkerClientCompat
 import androidx.webkit.ServiceWorkerControllerCompat
 import androidx.webkit.WebSettingsCompat
@@ -61,6 +63,7 @@ class MainActivity : AppCompatActivity() {
     private var loaderRunnable: Runnable? = null
     private val loaderDelayMs = 0L // show immediately to mask flash
     private var rendererRestartedOnce = false
+    private var lastBackPressTs: Long = 0L
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
@@ -241,6 +244,11 @@ class MainActivity : AppCompatActivity() {
         binding.debugButton.setOnClickListener {
             Log.d("VinorWebView", "t0=$loadStartMs, commit=$pageCommitMs, now=${System.currentTimeMillis()}")
         }
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                handleSmartBack()
+            }
+        })
 
         // Prepare OkHttp cache (100 MB) برای کش بهتر تصاویر/ویدیو
         val cacheDir = File(cacheDir, "http")
@@ -505,6 +513,50 @@ class MainActivity : AppCompatActivity() {
                 loader.visibility = View.GONE
                 loader.alpha = 1f
             }.start()
+        }
+    }
+
+    private fun handleSmartBack() {
+        checkModalOrMenuHandled { handled ->
+            if (handled) return@checkModalOrMenuHandled
+            val current = UrlUtils.normalize(webView.url.orEmpty())
+            val isVinor = UrlUtils.isVinorDomain(current)
+            val isHome = UrlUtils.isHomePage(current)
+
+            if (webView.canGoBack() && !isHome) {
+                webView.goBack()
+                return@checkModalOrMenuHandled
+            }
+
+            if (!isVinor) {
+                webView.loadUrl(targetUrl)
+                return@checkModalOrMenuHandled
+            }
+
+            val now = System.currentTimeMillis()
+            if (now - lastBackPressTs < 2000) {
+                moveTaskToBack(true)
+            } else {
+                lastBackPressTs = now
+                Toast.makeText(this, "برای خروج دوباره بزن", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun checkModalOrMenuHandled(cb: (Boolean) -> Unit) {
+        val js = """
+            (function(){
+                try {
+                    if (window.VinorBackHandler) {
+                        return !!window.VinorBackHandler();
+                    }
+                } catch(e){}
+                return false;
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { result ->
+            val handled = result?.contains("true") == true
+            cb(handled)
         }
     }
 
