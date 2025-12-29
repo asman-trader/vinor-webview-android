@@ -266,6 +266,9 @@ class MainActivity : AppCompatActivity() {
         binding.webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
         with(binding.webView.settings) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                offscreenPreRaster = true // render first screen before display to reduce perceived LCP
+            }
             javaScriptEnabled = true
             domStorageEnabled = true
             loadsImagesAutomatically = true
@@ -295,8 +298,15 @@ class MainActivity : AppCompatActivity() {
                     handleSmsLink(url)
                     return true
                 }
-                view?.loadUrl(url)
-                return true
+                // Let WebView handle http/https internally to avoid double navigation and extra round-trips
+                if (url.startsWith("http://") || url.startsWith("https://")) return false
+                // For any other custom scheme, try to hand off; fall back to WebView if it cannot be handled
+                return try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    true
+                } catch (_: Exception) {
+                    false
+                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
