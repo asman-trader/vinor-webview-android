@@ -50,6 +50,8 @@ class MainActivity : AppCompatActivity() {
         val url = request.url.toString()
         if (request.method != "GET") return null
         if (!(url.startsWith("http://") || url.startsWith("https://"))) return null
+        val host = request.url.host ?: return null
+        if (host != targetHost) return null // skip third-party to avoid overhead; let WebView fetch directly
         return try {
             memoryCache.get(url)?.let { bytes ->
                 return WebResourceResponse(
