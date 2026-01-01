@@ -23,7 +23,7 @@
         android:id="@+id/loader"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#CCF9FAFB"
+        android:background="#F2F5F7"
         android:visibility="visible">
 
         <LinearLayout
@@ -31,12 +31,13 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center"
-            android:layout_gravity="center">
+            android:layout_gravity="center"
+            android:padding="12dp">
 
             <ImageView
                 android:id="@+id/loaderLogo"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
                 android:src="@drawable/ic_v_green"
                 android:contentDescription="@string/app_name" />
 
