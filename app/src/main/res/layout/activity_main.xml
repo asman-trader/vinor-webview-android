@@ -23,7 +23,7 @@
         android:id="@+id/loader"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#E6111827"
+        android:background="#CCF9FAFB"
         android:visibility="visible">
 
         <LinearLayout
@@ -46,7 +46,17 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:indeterminate="true" />
+                android:indeterminate="true"
+                android:indeterminateTint="@color/vinor_primary_red" />
+
+            <TextView
+                android:id="@+id/loaderText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/loading_message"
+                android:textColor="@color/vinor_text_muted"
+                android:textSize="14sp" />
         </LinearLayout>
     </FrameLayout>
 

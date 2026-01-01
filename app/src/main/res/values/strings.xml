@@ -4,5 +4,6 @@
     <string name="preloader_connecting">در حال اتصال به وینور…</string>
     <string name="preloader_retry">تلاش مجدد</string>
     <string name="preloader_no_internet">اتصال اینترنت برقرار نیست</string>
+    <string name="loading_message">در حال بارگذاری…</string>
 </resources>
 
