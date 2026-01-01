@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">وینور</string>
+    <string name="preloader_connecting">در حال اتصال به وینور…</string>
+    <string name="preloader_retry">تلاش مجدد</string>
 </resources>
 
