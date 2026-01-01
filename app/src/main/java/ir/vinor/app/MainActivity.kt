@@ -39,6 +39,7 @@ import ir.vinor.app.databinding.ActivityMainBinding
 import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -66,11 +67,9 @@ class MainActivity : AppCompatActivity() {
     private var lastBackPressTs: Long = 0L
 
     private fun interceptToOkHttp(request: WebResourceRequest): WebResourceResponse? {
+        val offline = !isOnline()
+        if (!shouldIntercept(request, offline)) return null
         val url = request.url.toString()
-        if (request.method != "GET") return null
-        if (!(url.startsWith("http://") || url.startsWith("https://"))) return null
-        val host = request.url.host ?: return null
-        if (host != targetHost) return null // skip third-party to avoid overhead; let WebView fetch directly
         return try {
             memoryCache.get(url)?.let { bytes ->
                 return WebResourceResponse(
@@ -80,10 +79,10 @@ class MainActivity : AppCompatActivity() {
                 ).apply { setStatusCodeAndReasonPhrase(200, "OK") }
             }
             val reqBuilder = Request.Builder().url(url)
-            if (!isOnline()) {
+            if (offline) {
                 reqBuilder.cacheControl(CacheControl.FORCE_CACHE)
             }
-            val resp = if (shouldPreferCache(request)) {
+            val resp = if (shouldPreferCache(request, offline)) {
                 fetchCacheFirst(reqBuilder)
             } else {
                 httpClient.newCall(reqBuilder.build()).execute()
@@ -94,7 +93,7 @@ class MainActivity : AppCompatActivity() {
             val mime = resp.header("Content-Type")?.substringBefore(";") ?: guessMime(url)
             val encoding = "utf-8"
             val contentLength = body.contentLength()
-            val canMemCache = shouldMemCache(request, url, contentLength)
+            val canMemCache = shouldMemCache(request, url, contentLength, offline)
             val bodyBytes = if (canMemCache) runCatching { body.bytes() }.getOrNull() else null
             val stream: InputStream = if (bodyBytes != null) {
                 memoryCache.put(url, bodyBytes)
@@ -115,16 +114,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun shouldPreferCache(request: WebResourceRequest): Boolean {
-        val url = request.url.toString()
+    private fun shouldIntercept(request: WebResourceRequest, offline: Boolean): Boolean {
         if (request.method != "GET") return false
-        val host = request.url.host ?: return false
+        val url = request.url
+        val host = url.host ?: return false
         val isTargetHost = host == targetHost
-        return isTargetHost && isStaticAsset(url)
+        val isStatic = isStaticAsset(url.toString())
+        // Intercept only first-party static assets (or when offline) to avoid slowing HTML/docs
+        return isTargetHost && (isStatic || offline)
     }
 
-    private fun shouldMemCache(request: WebResourceRequest, url: String, contentLength: Long): Boolean {
-        if (!shouldPreferCache(request)) return false
+    private fun shouldPreferCache(request: WebResourceRequest, offline: Boolean): Boolean =
+        shouldIntercept(request, offline) && isStaticAsset(request.url.toString())
+
+    private fun shouldMemCache(request: WebResourceRequest, url: String, contentLength: Long, offline: Boolean): Boolean {
+        if (!shouldPreferCache(request, offline)) return false
         // Guard against unknown sizes; keep only reasonably small assets
         if (contentLength in 1..(256 * 1024)) return true
         // Unknown length (-1) often means chunked; avoid to prevent OOM
@@ -253,7 +257,13 @@ class MainActivity : AppCompatActivity() {
         // Prepare OkHttp cache (100 MB) برای کش بهتر تصاویر/ویدیو
         val cacheDir = File(cacheDir, "http")
         val cache = Cache(cacheDir, 100L * 1024L * 1024L)
+        val dispatcher = Dispatcher().apply {
+            // Allow more parallel asset fetches to speed up first paint
+            maxRequests = 64
+            maxRequestsPerHost = 16
+        }
         httpClient = OkHttpClient.Builder()
+            .dispatcher(dispatcher)
             .cache(cache)
             .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
             .connectTimeout(7, TimeUnit.SECONDS)
