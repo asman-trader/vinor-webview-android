@@ -56,9 +56,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private val targetUrl = "https://vinor.ir"
     private val targetHost: String = Uri.parse(targetUrl).host ?: "vinor.ir"
-    private val memoryCache = object : LruCache<String, ByteArray>(2 * 1024 * 1024) {
+    // Small hot cache for images/fonts/js/css to avoid re-fetch on navigation
+    private val memoryCache = object : LruCache<String, ByteArray>(8 * 1024 * 1024) {
         override fun sizeOf(key: String, value: ByteArray): Int = value.size // real bytes, not entry count
-    } // ~2MB small-asset hot cache
+    } // ~8MB hot cache (bounded)
     private var loadStartMs: Long = 0L
     private var pageCommitMs: Long = 0L
     private var loaderRunnable: Runnable? = null
@@ -186,6 +187,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun desiredMaxAgeSeconds(
+        url: String,
+        contentType: String,
+        isStatic: Boolean,
+        isImage: Boolean,
+        isVideo: Boolean,
+        isHtml: Boolean,
+        isHashed: Boolean
+    ): Int? {
+        return when {
+            isHashed && isStatic -> 365 * 24 * 3600 // 1 year for fingerprinted assets
+            isImage || url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".jpeg") ||
+                    url.endsWith(".webp") || url.endsWith(".gif") || url.endsWith(".svg") -> 14 * 24 * 3600 // 14 days
+            url.endsWith(".woff") || url.endsWith(".woff2") || url.endsWith(".ttf") -> 30 * 24 * 3600 // 30 days for fonts
+            isVideo || url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".m4v") ||
+                    url.endsWith(".mov") || url.endsWith(".m3u8") || url.endsWith(".ts") ||
+                    url.endsWith(".mpd") -> 7 * 24 * 3600 // 7 days for media
+            isHtml -> 3600 // 1 hour
+            isStatic -> 86400 // 1 day for other static assets
+            else -> null
+        }
+    }
+
+    private fun shouldUpgradeCache(current: String?, desired: Int): Boolean {
+        if (current.isNullOrBlank()) return true
+        val lowered = current.lowercase()
+        if (lowered.contains("no-store") || lowered.contains("no-cache") || lowered.contains("private")) return false
+        val maxAge = Regex("max-age=(\\d+)").find(lowered)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        return maxAge == null || maxAge < desired
+    }
+
     private fun isOnline(): Boolean {
         return try {
             val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
@@ -293,19 +325,13 @@ class MainActivity : AppCompatActivity() {
                         contentType.contains("application/dash+xml")
                 val isHtml = contentType.startsWith("text/html") || !(isStatic || url.contains("."))
                 val isHashed = Regex("([a-f0-9]{8,})").containsMatchIn(url) || url.contains("v=") || url.contains("ver=")
-                if (response.header("Cache-Control") == null) {
-                    val maxAge = when {
-                        isHashed && isStatic -> 365 * 24 * 3600 // 1 year for fingerprinted assets
-                        isImage || url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".jpeg") ||
-                                url.endsWith(".webp") || url.endsWith(".gif") -> 7 * 24 * 3600 // 7 روز
-                        isVideo || url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".m4v") ||
-                                url.endsWith(".mov") || url.endsWith(".m3u8") || url.endsWith(".ts") ||
-                                url.endsWith(".mpd") -> 3 * 24 * 3600 // 3 روز
-                        isHtml -> 3600 // 1 ساعت
-                        else -> 86400 // 1 روز
-                    }
+                val desiredMaxAge = desiredMaxAgeSeconds(url, contentType, isStatic, isImage, isVideo, isHtml, isHashed)
+                val currentCc = response.header("Cache-Control")
+                val shouldOverride = desiredMaxAge != null && shouldUpgradeCache(currentCc, desiredMaxAge)
+                if (shouldOverride) {
                     response.newBuilder()
-                        .header("Cache-Control", "public, max-age=$maxAge")
+                        .removeHeader("Pragma")
+                        .header("Cache-Control", "public, max-age=$desiredMaxAge")
                         .build()
                 } else response
             }
