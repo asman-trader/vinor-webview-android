@@ -177,8 +177,9 @@ abstract class BaseWebViewFragment : Fragment() {
     
     /**
      * بارگذاری مجدد با URL جدید (برای تغییر داینامیک منو)
+     * open است تا بتوان در Fragmentهای فرزند override کرد
      */
-    fun reloadWithUrl(url: String) {
+    open fun reloadWithUrl(url: String) {
         dynamicUrl = url
         if (::webView.isInitialized) {
             if (!isOnline()) {
