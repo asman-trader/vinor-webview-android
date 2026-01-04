@@ -5,6 +5,7 @@
     android:id="@+id/nav_graph"
     app:startDestination="@id/homeFragment">
 
+    <!-- منوی عمومی -->
     <fragment
         android:id="@+id/homeFragment"
         android:name="ir.vinor.app.HomeFragment"
@@ -12,28 +13,58 @@
         tools:layout="@layout/fragment_webview" />
 
     <fragment
-        android:id="@+id/searchFragment"
-        android:name="ir.vinor.app.SearchFragment"
-        android:label="جستجو"
+        android:id="@+id/exploreFragment"
+        android:name="ir.vinor.app.ExploreFragment"
+        android:label="اکسپلور"
         tools:layout="@layout/fragment_webview" />
 
     <fragment
-        android:id="@+id/addListingFragment"
-        android:name="ir.vinor.app.AddListingFragment"
-        android:label="ثبت آگهی"
+        android:id="@+id/helpFragment"
+        android:name="ir.vinor.app.HelpFragment"
+        android:label="راهنما"
         tools:layout="@layout/fragment_webview" />
 
     <fragment
-        android:id="@+id/messagesFragment"
-        android:name="ir.vinor.app.MessagesFragment"
-        android:label="پیام‌ها"
+        android:id="@+id/aboutFragment"
+        android:name="ir.vinor.app.AboutFragment"
+        android:label="درباره"
+        tools:layout="@layout/fragment_webview" />
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="ir.vinor.app.LoginFragment"
+        android:label="ورود"
+        tools:layout="@layout/fragment_webview" />
+
+    <!-- منوی همکار اکسپرس -->
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="ir.vinor.app.DashboardFragment"
+        android:label="خانه"
+        tools:layout="@layout/fragment_webview" />
+
+    <fragment
+        android:id="@+id/commissionsFragment"
+        android:name="ir.vinor.app.CommissionsFragment"
+        android:label="پورسانت"
+        tools:layout="@layout/fragment_webview" />
+
+    <fragment
+        android:id="@+id/expressFragment"
+        android:name="ir.vinor.app.ExploreFragment"
+        android:label="اکسپلور"
+        tools:layout="@layout/fragment_webview" />
+
+    <fragment
+        android:id="@+id/routineFragment"
+        android:name="ir.vinor.app.RoutineFragment"
+        android:label="روتین"
         tools:layout="@layout/fragment_webview" />
 
     <fragment
         android:id="@+id/profileFragment"
         android:name="ir.vinor.app.ProfileFragment"
-        android:label="پروفایل"
+        android:label="من"
         tools:layout="@layout/fragment_webview" />
 
 </navigation>
-

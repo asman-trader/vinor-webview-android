@@ -5,23 +5,20 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import ir.vinor.app.databinding.ActivityMainBinding
 
 /**
- * MainActivity با Bottom Navigation و 5 تب
- * - خانه
- * - جستجو
- * - ثبت آگهی
- * - پیام‌ها
- * - پروفایل
+ * MainActivity با Bottom Navigation داینامیک - هماهنگ با منوی سایت
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var lastBackPressTime: Long = 0
     private val backPressThreshold = 2000 // 2 seconds
+    private var currentMenuItems: List<MenuManager.MenuItem> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,10 +27,10 @@ class MainActivity : AppCompatActivity() {
 
         setupNavigation()
         setupBackPressHandler()
+        loadMenuFromAPI()
         
         // Connection Test - لاگ برای تست
         Log.d("MainActivity", "App started - Connection Test")
-        logCurrentTab()
     }
 
     private fun setupNavigation() {
@@ -44,10 +41,102 @@ class MainActivity : AppCompatActivity() {
         // اتصال Bottom Navigation به NavController
         binding.bottomNavigation.setupWithNavController(navController)
 
-        // لاگ تغییر تب
+        // لاگ تغییر تب و به‌روزرسانی URL از منوی API
         navController.addOnDestinationChangedListener { _, destination, _ ->
             Log.d("MainActivity", "Tab changed to: ${destination.label}")
+            updateFragmentUrlFromMenu(destination.id)
             logCurrentTab()
+        }
+    }
+
+    /**
+     * بارگذاری منو از API سایت
+     */
+    private fun loadMenuFromAPI() {
+        MenuManager.fetchMenu(
+            scope = lifecycleScope,
+            onSuccess = { menuItems ->
+                currentMenuItems = menuItems
+                updateBottomNavigationMenu(menuItems)
+                updateFragmentUrls(menuItems)
+                Log.d("MainActivity", "Menu loaded: ${menuItems.size} items")
+            },
+            onError = { error ->
+                Log.e("MainActivity", "Error loading menu: $error")
+                // استفاده از منوی پیش‌فرض
+                val defaultMenu = MenuManager.getDefaultMenu()
+                currentMenuItems = defaultMenu
+                updateBottomNavigationMenu(defaultMenu)
+                updateFragmentUrls(defaultMenu)
+            }
+        )
+    }
+    
+    /**
+     * به‌روزرسانی URLهای Fragmentها بر اساس منوی API
+     */
+    private fun updateFragmentUrls(menuItems: List<MenuManager.MenuItem>) {
+        // ذخیره mapping برای استفاده بعدی
+        menuItems.forEach { menuItem ->
+            val fullUrl = if (menuItem.url.startsWith("http")) {
+                menuItem.url
+            } else {
+                "https://vinor.ir${menuItem.url}"
+            }
+            Log.d("MainActivity", "Menu item: ${menuItem.key} -> $fullUrl (Fragment ID: ${menuItem.fragmentId})")
+        }
+        
+        // به‌روزرسانی Fragment فعلی
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(R.id.navHostFragment) as? NavHostFragment
+        val currentDestinationId = navHostFragment?.navController?.currentDestination?.id
+        if (currentDestinationId != null) {
+            updateFragmentUrlFromMenu(currentDestinationId)
+        }
+    }
+    
+    /**
+     * به‌روزرسانی URL Fragment بر اساس منوی API
+     */
+    private fun updateFragmentUrlFromMenu(fragmentId: Int) {
+        val menuItem = currentMenuItems.find { it.fragmentId == fragmentId }
+        if (menuItem != null) {
+            val navHostFragment = supportFragmentManager
+                .findFragmentById(R.id.navHostFragment) as? NavHostFragment
+            val currentFragment = navHostFragment?.childFragmentManager?.fragments?.firstOrNull()
+            
+            if (currentFragment is BaseWebViewFragment) {
+                val fullUrl = if (menuItem.url.startsWith("http")) {
+                    menuItem.url
+                } else {
+                    "https://vinor.ir${menuItem.url}"
+                }
+                // فقط اگر URL متفاوت است، reload کن
+                if (currentFragment.getCurrentUrl() != fullUrl) {
+                    currentFragment.reloadWithUrl(fullUrl)
+                }
+            }
+        }
+    }
+
+    /**
+     * به‌روزرسانی منوی Bottom Navigation
+     */
+    private fun updateBottomNavigationMenu(menuItems: List<MenuManager.MenuItem>) {
+        val menu = binding.bottomNavigation.menu
+        menu.clear()
+
+        menuItems.forEachIndexed { index, item ->
+            val menuItem = menu.add(0, item.fragmentId, index, item.label)
+            val iconRes = MenuManager.getIconDrawable(item.icon)
+            menuItem.icon = getDrawable(iconRes) ?: getDrawable(R.drawable.ic_home)
+        }
+
+        // اتصال مجدد به NavController
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(R.id.navHostFragment) as? NavHostFragment
+        navHostFragment?.navController?.let { navController ->
+            binding.bottomNavigation.setupWithNavController(navController)
         }
     }
 
@@ -68,22 +157,26 @@ class MainActivity : AppCompatActivity() {
                     
                     // اگر در ریشه تب هستیم (نه خانه) => به خانه برگرد
                     currentFragment is BaseWebViewFragment && 
-                    currentFragment.isAtRoot() && 
-                    navHostFragment?.navController?.currentDestination?.id != R.id.homeFragment -> {
-                        navHostFragment?.navController?.navigate(R.id.homeFragment)
-                        Log.d("MainActivity", "Navigated to Home tab")
+                    currentFragment.isAtRoot() -> {
+                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.homeFragment
+                        if (navHostFragment?.navController?.currentDestination?.id != homeFragmentId) {
+                            navHostFragment?.navController?.navigate(homeFragmentId)
+                            Log.d("MainActivity", "Navigated to Home tab")
+                        } else {
+                            handleExitConfirmation()
+                        }
                     }
                     
                     // اگر در خانه و ریشه هستیم => Confirm خروج
-                    navHostFragment?.navController?.currentDestination?.id == R.id.homeFragment -> {
-                        handleExitConfirmation()
-                    }
-                    
-                    // در غیر این صورت، Navigation Component خودش handle می‌کند
                     else -> {
-                        isEnabled = false
-                        onBackPressedDispatcher.onBackPressed()
-                        isEnabled = true
+                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.homeFragment
+                        if (navHostFragment?.navController?.currentDestination?.id == homeFragmentId) {
+                            handleExitConfirmation()
+                        } else {
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                            isEnabled = true
+                        }
                     }
                 }
             }
@@ -97,7 +190,7 @@ class MainActivity : AppCompatActivity() {
         if (currentTime - lastBackPressTime < backPressThreshold) {
             // خروج از اپ
             finish()
-            } else {
+        } else {
             // نمایش پیام
             lastBackPressTime = currentTime
             Toast.makeText(

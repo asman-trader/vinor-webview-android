@@ -28,6 +28,9 @@ abstract class BaseWebViewFragment : Fragment() {
     abstract val targetUrl: String
     abstract val fragmentTag: String // برای لاگ
     
+    // URL داینامیک - می‌تواند از منوی API تنظیم شود
+    var dynamicUrl: String? = null
+    
     // Public getters for MainActivity access
     fun getCurrentUrl(): String? {
         return if (::webView.isInitialized) webView.url else null
@@ -162,8 +165,27 @@ abstract class BaseWebViewFragment : Fragment() {
             return
         }
         hideOffline()
-        Log.d(fragmentTag, "Loading URL: $targetUrl")
-        webView.loadUrl(targetUrl)
+        val urlToLoad = dynamicUrl ?: targetUrl
+        Log.d(fragmentTag, "Loading URL: $urlToLoad")
+        if (::webView.isInitialized) {
+            webView.loadUrl(urlToLoad)
+        }
+    }
+    
+    /**
+     * بارگذاری مجدد با URL جدید (برای تغییر داینامیک منو)
+     */
+    fun reloadWithUrl(url: String) {
+        dynamicUrl = url
+        if (::webView.isInitialized) {
+            if (!isOnline()) {
+                showOffline()
+                return
+            }
+            hideOffline()
+            Log.d(fragmentTag, "Reloading with new URL: $url")
+            webView.loadUrl(url)
+        }
     }
 
     /**
