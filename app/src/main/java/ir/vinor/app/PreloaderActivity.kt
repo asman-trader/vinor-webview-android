@@ -10,6 +10,7 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +29,9 @@ class PreloaderActivity : AppCompatActivity() {
     private lateinit var retry: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // اجباری کردن تم تاریک در تمام اپلیکیشن
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_preloader)
 
