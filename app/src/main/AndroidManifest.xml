@@ -26,7 +26,16 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:hardwareAccelerated="true" />
+            android:hardwareAccelerated="true">
+            <!-- DeepLink: لینک‌های vinor.ir داخل اپ باز شود -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="vinor.ir" />
+                <data android:scheme="http" android:host="vinor.ir" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>
