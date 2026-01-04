@@ -33,16 +33,7 @@ abstract class BaseWebViewFragment : Fragment() {
     
     // Public getters for MainActivity access
     fun getCurrentUrl(): String? {
-        return try {
-            if (::webView.isInitialized && ::binding.isInitialized && view != null && !isDetached && isAdded) {
-                webView.url
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error getting current URL", e)
-            null
-        }
+        return if (::webView.isInitialized) webView.url else null
     }
 
     private var canGoBack = false
@@ -58,18 +49,9 @@ abstract class BaseWebViewFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        try {
-            setupWebView()
-            setupRetryButton()
-            // تاخیر کوتاه برای اطمینان از آماده بودن Context
-            view.post {
-                if (isAdded && !isDetached && view != null) {
-                    loadUrl()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error in onViewCreated", e)
-        }
+        setupWebView()
+        setupRetryButton()
+        loadUrl()
     }
 
     private fun setupRetryButton() {
@@ -79,21 +61,10 @@ abstract class BaseWebViewFragment : Fragment() {
     }
 
     private fun setupWebView() {
-        try {
-            if (!isAdded || isDetached || context == null) {
-                Log.w(fragmentTag, "Fragment not attached, skipping WebView setup")
-                return
-            }
-            
-            webView = binding.webView
-            
-            if (webView == null) {
-                Log.e(fragmentTag, "WebView is null in binding")
-                return
-            }
+        webView = binding.webView
 
-            // تنظیمات امنیتی و عملکردی WebView
-            val settings = webView.settings
+        // تنظیمات امنیتی و عملکردی WebView
+        val settings = webView.settings
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
@@ -110,11 +81,6 @@ abstract class BaseWebViewFragment : Fragment() {
         settings.allowFileAccessFromFileURLs = false
         settings.allowUniversalAccessFromFileURLs = false
         settings.userAgentString = settings.userAgentString + " VinorApp/Android"
-        
-        // پشتیبانی از تم تاریک در WebView
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            settings.forceDark = WebSettings.FORCE_DARK_ON
-        }
 
         // WebViewClient برای مدیریت navigation و errors
         webView.webViewClient = object : WebViewClient() {
@@ -140,36 +106,21 @@ abstract class BaseWebViewFragment : Fragment() {
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                try {
-                    super.onPageStarted(view, url, favicon)
-                    if (!isDetached && view != null) {
-                        showLoader()
-                        hideOffline()
-                        canGoBack = view.canGoBack()
-                        Log.d(fragmentTag, "Page started: $url")
-                    }
-                } catch (e: Exception) {
-                    Log.e(fragmentTag, "Error in onPageStarted", e)
-                }
+                super.onPageStarted(view, url, favicon)
+                showLoader()
+                hideOffline()
+                canGoBack = view?.canGoBack() == true
+                Log.d(fragmentTag, "Page started: $url")
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
-                try {
-                    super.onPageFinished(view, url)
-                    if (!isDetached && view != null) {
-                        hideLoader()
-                        canGoBack = view.canGoBack()
-                        Log.d(fragmentTag, "Page finished: $url")
-                        
-                        // مخفی کردن منوی فوتر سایت در اپلیکیشن
-                        hideFooterMenu()
-                        
-                        // فعال کردن تم تاریک در صفحه وب
-                        enableDarkMode()
-                    }
-                } catch (e: Exception) {
-                    Log.e(fragmentTag, "Error in onPageFinished", e)
-                }
+                super.onPageFinished(view, url)
+                hideLoader()
+                canGoBack = view?.canGoBack() == true
+                Log.d(fragmentTag, "Page finished: $url")
+                
+                // مخفی کردن منوی فوتر سایت در اپلیکیشن
+                hideFooterMenu()
             }
 
             override fun onReceivedError(
@@ -200,55 +151,27 @@ abstract class BaseWebViewFragment : Fragment() {
         // WebChromeClient برای progress bar
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                try {
-                    super.onProgressChanged(view, newProgress)
-                    if (!isDetached && this@BaseWebViewFragment.view != null && ::binding.isInitialized) {
-                        binding.progressBar.progress = newProgress
-                        if (newProgress == 100) {
-                            binding.progressBar.visibility = View.GONE
-                        } else {
-                            binding.progressBar.visibility = View.VISIBLE
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(fragmentTag, "Error in onProgressChanged", e)
+                super.onProgressChanged(view, newProgress)
+                binding.progressBar.progress = newProgress
+                if (newProgress == 100) {
+                    binding.progressBar.visibility = View.GONE
+                } else {
+                    binding.progressBar.visibility = View.VISIBLE
                 }
             }
-        }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error setting up WebView", e)
         }
     }
 
     private fun loadUrl() {
-        try {
-            // بررسی lifecycle
-            if (isDetached || view == null || !isAdded || context == null) {
-                Log.w(fragmentTag, "Fragment not attached, skipping load")
-                return
-            }
-            
-            if (!isOnline()) {
-                showOffline()
-                return
-            }
-            hideOffline()
-            val urlToLoad = dynamicUrl ?: targetUrl
-            Log.d(fragmentTag, "Loading URL: $urlToLoad")
-            if (::webView.isInitialized && ::binding.isInitialized) {
-                // استفاده از post برای اطمینان از اجرا در UI thread
-                view?.post {
-                    if (!isDetached && isAdded && ::webView.isInitialized) {
-                        try {
-                            webView.loadUrl(urlToLoad)
-                        } catch (e: Exception) {
-                            Log.e(fragmentTag, "Error loading URL in post", e)
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error loading URL", e)
+        if (!isOnline()) {
+            showOffline()
+            return
+        }
+        hideOffline()
+        val urlToLoad = dynamicUrl ?: targetUrl
+        Log.d(fragmentTag, "Loading URL: $urlToLoad")
+        if (::webView.isInitialized) {
+            webView.loadUrl(urlToLoad)
         }
     }
     
@@ -257,34 +180,15 @@ abstract class BaseWebViewFragment : Fragment() {
      * open است تا بتوان در Fragmentهای فرزند override کرد
      */
     open fun reloadWithUrl(url: String) {
-        try {
-            // بررسی lifecycle و view state
-            if (isDetached || view == null || !isAdded || context == null) {
-                Log.w(fragmentTag, "Fragment not attached, skipping reload")
+        dynamicUrl = url
+        if (::webView.isInitialized) {
+            if (!isOnline()) {
+                showOffline()
                 return
             }
-            
-            dynamicUrl = url
-            if (::webView.isInitialized && ::binding.isInitialized) {
-                if (!isOnline()) {
-                    showOffline()
-                    return
-                }
-                hideOffline()
-                Log.d(fragmentTag, "Reloading with new URL: $url")
-                // استفاده از post برای اطمینان از اجرا در UI thread
-                view?.post {
-                    if (!isDetached && isAdded && ::webView.isInitialized) {
-                        try {
-                            webView.loadUrl(url)
-                        } catch (e: Exception) {
-                            Log.e(fragmentTag, "Error loading URL in post", e)
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error reloading URL: $url", e)
+            hideOffline()
+            Log.d(fragmentTag, "Reloading with new URL: $url")
+            webView.loadUrl(url)
         }
     }
 
@@ -304,60 +208,32 @@ abstract class BaseWebViewFragment : Fragment() {
      * نمایش Loader/Skeleton
      */
     private fun showLoader() {
-        try {
-            if (!isDetached && view != null && ::binding.isInitialized) {
-                binding.loaderContainer.visibility = View.VISIBLE
-                binding.skeletonView.visibility = View.VISIBLE
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error showing loader", e)
-        }
+        binding.loaderContainer.visibility = View.VISIBLE
+        binding.skeletonView.visibility = View.VISIBLE
     }
 
     /**
      * مخفی کردن Loader
      */
     private fun hideLoader() {
-        try {
-            if (!isDetached && view != null && ::binding.isInitialized) {
-                binding.loaderContainer.visibility = View.GONE
-                binding.skeletonView.visibility = View.GONE
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error hiding loader", e)
-        }
+        binding.loaderContainer.visibility = View.GONE
+        binding.skeletonView.visibility = View.GONE
     }
 
     /**
      * نمایش صفحه Offline
      */
     private fun showOffline() {
-        try {
-            if (!isDetached && view != null && ::binding.isInitialized) {
-                binding.offlineContainer.visibility = View.VISIBLE
-                if (::webView.isInitialized) {
-                    binding.webView.visibility = View.GONE
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error showing offline", e)
-        }
+        binding.offlineContainer.visibility = View.VISIBLE
+        binding.webView.visibility = View.GONE
     }
 
     /**
      * مخفی کردن صفحه Offline
      */
     private fun hideOffline() {
-        try {
-            if (!isDetached && view != null && ::binding.isInitialized) {
-                binding.offlineContainer.visibility = View.GONE
-                if (::webView.isInitialized) {
-                    binding.webView.visibility = View.VISIBLE
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error hiding offline", e)
-        }
+        binding.offlineContainer.visibility = View.GONE
+        binding.webView.visibility = View.VISIBLE
     }
 
     /**
@@ -372,7 +248,7 @@ abstract class BaseWebViewFragment : Fragment() {
      * منوی فوتر با ID bottomNavMenu و کلاس fixed inset-x-0 bottom-0 است
      */
     private fun hideFooterMenu() {
-        if (!::webView.isInitialized || webView == null || view == null || isDetached) return
+        if (!::webView.isInitialized) return
         
         // JavaScript برای مخفی کردن منوی فوتر
         val hideFooterScript = """
@@ -453,69 +329,12 @@ abstract class BaseWebViewFragment : Fragment() {
     }
 
     /**
-     * فعال کردن تم تاریک در صفحه وب با JavaScript
-     */
-    private fun enableDarkMode() {
-        if (!::webView.isInitialized || webView == null || view == null || isDetached) return
-        
-        // JavaScript برای فعال کردن تم تاریک
-        val darkModeScript = """
-            (function() {
-                // اضافه کردن کلاس dark به html element
-                if (document.documentElement) {
-                    document.documentElement.classList.add('dark');
-                }
-                
-                // اضافه کردن attribute data-theme
-                if (document.documentElement) {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                }
-                
-                // اضافه کردن meta tag برای تم تاریک
-                var metaTheme = document.querySelector('meta[name="color-scheme"]');
-                if (!metaTheme) {
-                    metaTheme = document.createElement('meta');
-                    metaTheme.name = 'color-scheme';
-                    metaTheme.content = 'dark';
-                    document.head.appendChild(metaTheme);
-                } else {
-                    metaTheme.content = 'dark';
-                }
-                
-                // اضافه کردن style برای اطمینان از تم تاریک
-                var styleId = 'vinor-dark-mode-style';
-                if (!document.getElementById(styleId)) {
-                    var style = document.createElement('style');
-                    style.id = styleId;
-                    style.textContent = `
-                        html { color-scheme: dark !important; }
-                        body { background-color: #111827 !important; color: #F9FAFB !important; }
-                    `;
-                    document.head.appendChild(style);
-                }
-            })();
-        """.trimIndent()
-        
-        try {
-            webView.evaluateJavascript(darkModeScript, null)
-            Log.d(fragmentTag, "Dark mode enabled")
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error enabling dark mode", e)
-        }
-    }
-
-    /**
      * بررسی اینکه آیا WebView می‌تواند به عقب برگردد
      */
     fun canGoBackInWebView(): Boolean {
-        return try {
-            if (::webView.isInitialized && webView != null && view != null && !isDetached) {
-                webView.canGoBack()
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error checking canGoBack", e)
+        return if (::webView.isInitialized) {
+            webView.canGoBack()
+        } else {
             false
         }
     }
@@ -524,15 +343,10 @@ abstract class BaseWebViewFragment : Fragment() {
      * برگشت در WebView history
      */
     fun goBackInWebView(): Boolean {
-        return try {
-            if (::webView.isInitialized && webView != null && view != null && !isDetached && webView.canGoBack()) {
-                webView.goBack()
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error going back in WebView", e)
+        return if (::webView.isInitialized && webView.canGoBack()) {
+            webView.goBack()
+            true
+        } else {
             false
         }
     }
@@ -541,62 +355,37 @@ abstract class BaseWebViewFragment : Fragment() {
      * بررسی اینکه آیا در ریشه تب هستیم (URL اصلی)
      */
     fun isAtRoot(): Boolean {
-        return try {
-            if (!::webView.isInitialized || webView == null || view == null || isDetached) {
-                return true
-            }
-            
-            val currentUrl = webView.url ?: ""
-            if (currentUrl.isEmpty()) return true
-            
-            // بررسی اینکه آیا URL فعلی همان targetUrl است یا به آن ختم می‌شود
-            val cleanTarget = targetUrl.replace("https://", "").replace("http://", "")
-            val cleanCurrent = currentUrl.replace("https://", "").replace("http://", "")
-            
-            currentUrl == targetUrl || 
-            currentUrl.endsWith(targetUrl) ||
-            cleanCurrent == cleanTarget ||
-            cleanCurrent.startsWith(cleanTarget + "/")
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error checking isAtRoot", e)
-            true
-        }
+        if (!::webView.isInitialized) return true
+        val currentUrl = webView.url ?: ""
+        if (currentUrl.isEmpty()) return true
+        
+        // بررسی اینکه آیا URL فعلی همان targetUrl است یا به آن ختم می‌شود
+        val cleanTarget = targetUrl.replace("https://", "").replace("http://", "")
+        val cleanCurrent = currentUrl.replace("https://", "").replace("http://", "")
+        
+        return currentUrl == targetUrl || 
+               currentUrl.endsWith(targetUrl) ||
+               cleanCurrent == cleanTarget ||
+               cleanCurrent.startsWith(cleanTarget + "/")
     }
 
     override fun onPause() {
         super.onPause()
-        try {
-            if (::webView.isInitialized && webView != null && view != null) {
-                webView.onPause()
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error in onPause", e)
+        if (::webView.isInitialized) {
+            webView.onPause()
         }
     }
 
     override fun onResume() {
         super.onResume()
-        try {
-            if (::webView.isInitialized && webView != null && view != null) {
-                webView.onResume()
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error in onResume", e)
+        if (::webView.isInitialized) {
+            webView.onResume()
         }
     }
 
     override fun onDestroyView() {
-        try {
-            if (::webView.isInitialized && webView != null) {
-                // توقف بارگذاری
-                webView.stopLoading()
-                // حذف WebView از parent برای جلوگیری از memory leaks
-                (webView.parent as? android.view.ViewGroup)?.removeView(webView)
-                // destroy WebView (WebViewClient و WebChromeClient به صورت خودکار پاک می‌شوند)
-                webView.destroy()
-            }
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error in onDestroyView", e)
+        if (::webView.isInitialized) {
+            webView.destroy()
         }
         super.onDestroyView()
     }

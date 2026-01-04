@@ -5,7 +5,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
@@ -14,7 +13,6 @@ import ir.vinor.app.databinding.ActivityMainBinding
 /**
  * MainActivity با Bottom Navigation - 5 تب همکار اکسپرس:
  * خانه، پورسانت، اکسپلور، روتین، من
- * تم تاریک به صورت پیش‌فرض فعال است
  */
 class MainActivity : AppCompatActivity() {
 
@@ -24,28 +22,16 @@ class MainActivity : AppCompatActivity() {
     private var currentMenuItems: List<MenuManager.MenuItem> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        try {
-            // اجباری کردن تم تاریک در تمام اپلیکیشن
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-            
-            super.onCreate(savedInstanceState)
-            binding = ActivityMainBinding.inflate(layoutInflater)
-            setContentView(binding.root)
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-            setupNavigation()
-            setupBackPressHandler()
-            // تاخیر کوتاه برای اطمینان از آماده بودن FragmentManager
-            binding.root.post {
-                loadMenuFromAPI()
-            }
-            
-            // Connection Test - لاگ برای تست
-            Log.d("MainActivity", "App started - Connection Test")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Error in onCreate", e)
-            // در صورت خطا، اپلیکیشن را ببند
-            finish()
-        }
+        setupNavigation()
+        setupBackPressHandler()
+        loadMenuFromAPI()
+        
+        // Connection Test - لاگ برای تست
+        Log.d("MainActivity", "App started - Connection Test")
     }
 
     private fun setupNavigation() {
@@ -114,34 +100,23 @@ class MainActivity : AppCompatActivity() {
      * به‌روزرسانی URL Fragment بر اساس منوی API
      */
     private fun updateFragmentUrlFromMenu(fragmentId: Int) {
-        try {
-            val menuItem = currentMenuItems.find { it.fragmentId == fragmentId }
-            if (menuItem != null) {
-                val navHostFragment = supportFragmentManager
-                    .findFragmentById(R.id.navHostFragment) as? NavHostFragment
-                
-                if (navHostFragment == null) {
-                    Log.w("MainActivity", "NavHostFragment is null")
-                    return
+        val menuItem = currentMenuItems.find { it.fragmentId == fragmentId }
+        if (menuItem != null) {
+            val navHostFragment = supportFragmentManager
+                .findFragmentById(R.id.navHostFragment) as? NavHostFragment
+            val currentFragment = navHostFragment?.childFragmentManager?.fragments?.firstOrNull()
+            
+            if (currentFragment is BaseWebViewFragment) {
+                val fullUrl = if (menuItem.url.startsWith("http")) {
+                    menuItem.url
+                } else {
+                    "https://vinor.ir${menuItem.url}"
                 }
-                
-                val currentFragment = navHostFragment.childFragmentManager.fragments.firstOrNull()
-                
-                if (currentFragment is BaseWebViewFragment && currentFragment.isAdded && !currentFragment.isDetached) {
-                    val fullUrl = if (menuItem.url.startsWith("http")) {
-                        menuItem.url
-                    } else {
-                        "https://vinor.ir${menuItem.url}"
-                    }
-                    // فقط اگر URL متفاوت است، reload کن
-                    val currentUrl = currentFragment.getCurrentUrl()
-                    if (currentUrl != fullUrl) {
-                        currentFragment.reloadWithUrl(fullUrl)
-                    }
+                // فقط اگر URL متفاوت است، reload کن
+                if (currentFragment.getCurrentUrl() != fullUrl) {
+                    currentFragment.reloadWithUrl(fullUrl)
                 }
             }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Error updating fragment URL", e)
         }
     }
 
@@ -170,68 +145,40 @@ class MainActivity : AppCompatActivity() {
         // Back handling هوشمند
         val callback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                try {
-                    val navHostFragment = supportFragmentManager
-                        .findFragmentById(R.id.navHostFragment) as? NavHostFragment
-                    
-                    if (navHostFragment == null) {
-                        handleExitConfirmation()
-                        return
-                    }
-                    
-                    val currentFragment = navHostFragment.childFragmentManager.fragments.firstOrNull()
+                val navHostFragment = supportFragmentManager
+                    .findFragmentById(R.id.navHostFragment) as? NavHostFragment
+                val currentFragment = navHostFragment?.childFragmentManager?.fragments?.firstOrNull()
 
-                    when {
-                        // اگر Fragment یک BaseWebViewFragment است و WebView history دارد
-                        currentFragment is BaseWebViewFragment && 
-                        currentFragment.isAdded && 
-                        !currentFragment.isDetached &&
-                        currentFragment.canGoBackInWebView() -> {
-                            currentFragment.goBackInWebView()
-                            Log.d("MainActivity", "WebView goBack")
-                        }
-                        
-                        // اگر در ریشه تب هستیم (نه خانه) => به خانه برگرد
-                        currentFragment is BaseWebViewFragment && 
-                        currentFragment.isAdded && 
-                        !currentFragment.isDetached &&
-                        currentFragment.isAtRoot() -> {
-                            val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
-                            val navController = navHostFragment.navController
-                            if (navController.currentDestination?.id != homeFragmentId) {
-                                try {
-                                    navController.navigate(homeFragmentId)
-                                    Log.d("MainActivity", "Navigated to Home tab")
-                                } catch (e: Exception) {
-                                    Log.e("MainActivity", "Error navigating to home", e)
-                                    handleExitConfirmation()
-                                }
-                            } else {
-                                handleExitConfirmation()
-                            }
-                        }
-                        
-                        // اگر در خانه و ریشه هستیم => Confirm خروج
-                        else -> {
-                            val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
-                            val navController = navHostFragment.navController
-                            if (navController.currentDestination?.id == homeFragmentId) {
-                                handleExitConfirmation()
-                            } else {
-                                try {
-                                    isEnabled = false
-                                    onBackPressedDispatcher.onBackPressed()
-                                    isEnabled = true
-                                } catch (e: Exception) {
-                                    Log.e("MainActivity", "Error handling back press", e)
-                                    handleExitConfirmation()
-                                }
-                            }
+                when {
+                    // اگر Fragment یک BaseWebViewFragment است و WebView history دارد
+                    currentFragment is BaseWebViewFragment && currentFragment.canGoBackInWebView() -> {
+                        currentFragment.goBackInWebView()
+                        Log.d("MainActivity", "WebView goBack")
+                    }
+                    
+                    // اگر در ریشه تب هستیم (نه خانه) => به خانه برگرد
+                    currentFragment is BaseWebViewFragment && 
+                    currentFragment.isAtRoot() -> {
+                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
+                        if (navHostFragment?.navController?.currentDestination?.id != homeFragmentId) {
+                            navHostFragment?.navController?.navigate(homeFragmentId)
+                            Log.d("MainActivity", "Navigated to Home tab")
+                        } else {
+                            handleExitConfirmation()
                         }
                     }
-                } catch (e: Exception) {
-                    Log.e("MainActivity", "Error in back press handler", e)
-                    handleExitConfirmation()
+                    
+                    // اگر در خانه و ریشه هستیم => Confirm خروج
+                    else -> {
+                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
+                        if (navHostFragment?.navController?.currentDestination?.id == homeFragmentId) {
+                            handleExitConfirmation()
+                        } else {
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                            isEnabled = true
+                        }
+                    }
                 }
             }
         }
