@@ -68,7 +68,7 @@ class DashboardFragment : BaseWebViewFragment() {
     override fun onResume() {
         super.onResume()
         // اگر Fragment visible است و در dashboard هستیم، refresh کن
-        if (isVisible && ::webView.isInitialized) {
+        if (isVisible) {
             val currentUrl = getCurrentUrl()
             if (currentUrl != null && currentUrl.contains("/express/partner/dashboard")) {
                 val currentTime = System.currentTimeMillis()
@@ -76,7 +76,7 @@ class DashboardFragment : BaseWebViewFragment() {
                 if ((currentTime - lastRefreshTime) >= refreshThreshold) {
                     android.util.Log.d(fragmentTag, "Fragment resumed - refreshing dashboard")
                     lastRefreshTime = currentTime
-                    reloadWebView()
+                    reloadWebView() // reloadWebView خودش بررسی می‌کند که webView initialized است یا نه
                 }
             }
         }
