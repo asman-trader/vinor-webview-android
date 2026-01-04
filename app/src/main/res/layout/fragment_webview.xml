@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/vinor_bg_light">
+    android:background="@color/vinor_bg_dark">
 
     <!-- WebView -->
     <WebView
@@ -15,7 +15,7 @@
         android:id="@+id/loaderContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FFFFFF"
+        android:background="@color/vinor_bg_dark"
         android:visibility="visible">
 
         <!-- Skeleton View (Placeholder) -->
@@ -30,26 +30,26 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:background="#E0E0E0"
+                android:background="@color/vinor_skeleton_bg"
                 android:layout_marginBottom="16dp" />
 
             <!-- Content Skeleton -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="120dp"
-                android:background="#E0E0E0"
+                android:background="@color/vinor_skeleton_bg"
                 android:layout_marginBottom="16dp" />
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="120dp"
-                android:background="#E0E0E0"
+                android:background="@color/vinor_skeleton_bg"
                 android:layout_marginBottom="16dp" />
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="120dp"
-                android:background="#E0E0E0" />
+                android:background="@color/vinor_skeleton_bg" />
 
         </LinearLayout>
 
@@ -75,7 +75,7 @@
         android:orientation="vertical"
         android:gravity="center"
         android:padding="32dp"
-        android:background="#FFFFFF"
+        android:background="@color/vinor_offline_bg"
         android:visibility="gone">
 
         <ImageView
@@ -91,7 +91,7 @@
             android:text="اتصال به اینترنت برقرار نیست"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#333333"
+            android:textColor="@color/vinor_offline_text_primary"
             android:layout_marginBottom="8dp" />
 
         <TextView
@@ -99,7 +99,7 @@
             android:layout_height="wrap_content"
             android:text="لطفاً اتصال اینترنت خود را بررسی کنید"
             android:textSize="14sp"
-            android:textColor="#666666"
+            android:textColor="@color/vinor_offline_text_secondary"
             android:layout_marginBottom="24dp" />
 
         <Button
