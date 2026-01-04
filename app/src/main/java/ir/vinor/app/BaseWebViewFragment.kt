@@ -513,12 +513,11 @@ abstract class BaseWebViewFragment : Fragment() {
     override fun onDestroyView() {
         try {
             if (::webView.isInitialized && webView != null) {
-                // حذف WebViewClient و WebChromeClient برای جلوگیری از memory leaks
-                webView.webViewClient = null
-                webView.webChromeClient = null
-                // حذف WebView از parent
+                // توقف بارگذاری
+                webView.stopLoading()
+                // حذف WebView از parent برای جلوگیری از memory leaks
                 (webView.parent as? android.view.ViewGroup)?.removeView(webView)
-                // destroy WebView
+                // destroy WebView (WebViewClient و WebChromeClient به صورت خودکار پاک می‌شوند)
                 webView.destroy()
             }
         } catch (e: Exception) {
