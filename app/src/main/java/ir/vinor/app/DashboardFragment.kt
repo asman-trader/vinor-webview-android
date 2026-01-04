@@ -47,9 +47,7 @@ class DashboardFragment : BaseWebViewFragment() {
             if (isSameUrl) {
                 android.util.Log.d(fragmentTag, "Refreshing dashboard page")
                 lastRefreshTime = currentTime
-                if (::webView.isInitialized) {
-                    webView.reload()
-                }
+                reloadWebView()
             } else {
                 // اگر URL متفاوت است، load کن
                 android.util.Log.d(fragmentTag, "Loading dashboard: $url -> $dashboardUrl")
@@ -78,7 +76,7 @@ class DashboardFragment : BaseWebViewFragment() {
                 if ((currentTime - lastRefreshTime) >= refreshThreshold) {
                     android.util.Log.d(fragmentTag, "Fragment resumed - refreshing dashboard")
                     lastRefreshTime = currentTime
-                    webView.reload()
+                    reloadWebView()
                 }
             }
         }

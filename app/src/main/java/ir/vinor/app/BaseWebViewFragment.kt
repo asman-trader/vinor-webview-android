@@ -252,6 +252,16 @@ abstract class BaseWebViewFragment : Fragment() {
     }
 
     /**
+     * Reload صفحه فعلی WebView
+     * برای استفاده در Fragmentهای فرزند
+     */
+    protected fun reloadWebView() {
+        if (::webView.isInitialized) {
+            webView.reload()
+        }
+    }
+
+    /**
      * مخفی کردن منوی فوتر سایت با JavaScript
      * منوی فوتر با ID bottomNavMenu و کلاس fixed inset-x-0 bottom-0 است
      */
