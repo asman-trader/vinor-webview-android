@@ -46,21 +46,6 @@ object MenuManager {
         "profile" to R.id.profileFragment
     )
     
-    /**
-     * Mapping بین icon سایت (FontAwesome) و drawable اندروید
-     */
-    private fun getIconDrawable(iconName: String): Int {
-        return when (iconName) {
-            "fa-home" -> R.drawable.ic_home
-            "fa-magnifying-glass" -> R.drawable.ic_search
-            "fa-question-circle" -> R.drawable.ic_help
-            "fa-info-circle" -> R.drawable.ic_about
-            "fa-user" -> R.drawable.ic_profile
-            "fa-chart-line" -> R.drawable.ic_commissions
-            "fa-list-check" -> R.drawable.ic_routine
-            else -> R.drawable.ic_home // fallback
-        }
-    }
     
     /**
      * دریافت منو از API سایت
