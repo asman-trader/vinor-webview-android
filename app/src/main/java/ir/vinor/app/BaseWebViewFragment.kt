@@ -34,7 +34,7 @@ abstract class BaseWebViewFragment : Fragment() {
     // Public getters for MainActivity access
     fun getCurrentUrl(): String? {
         return try {
-            if (::webView.isInitialized && view != null && !isDetached) {
+            if (::webView.isInitialized && ::binding.isInitialized && view != null && !isDetached && isAdded) {
                 webView.url
             } else {
                 null
@@ -58,9 +58,18 @@ abstract class BaseWebViewFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupWebView()
-        setupRetryButton()
-        loadUrl()
+        try {
+            setupWebView()
+            setupRetryButton()
+            // تاخیر کوتاه برای اطمینان از آماده بودن Context
+            view.post {
+                if (isAdded && !isDetached && view != null) {
+                    loadUrl()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error in onViewCreated", e)
+        }
     }
 
     private fun setupRetryButton() {
@@ -70,10 +79,21 @@ abstract class BaseWebViewFragment : Fragment() {
     }
 
     private fun setupWebView() {
-        webView = binding.webView
+        try {
+            if (!isAdded || isDetached || context == null) {
+                Log.w(fragmentTag, "Fragment not attached, skipping WebView setup")
+                return
+            }
+            
+            webView = binding.webView
+            
+            if (webView == null) {
+                Log.e(fragmentTag, "WebView is null in binding")
+                return
+            }
 
-        // تنظیمات امنیتی و عملکردی WebView
-        val settings = webView.settings
+            // تنظیمات امنیتی و عملکردی WebView
+            val settings = webView.settings
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
@@ -180,21 +200,30 @@ abstract class BaseWebViewFragment : Fragment() {
         // WebChromeClient برای progress bar
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                super.onProgressChanged(view, newProgress)
-                binding.progressBar.progress = newProgress
-                if (newProgress == 100) {
-                    binding.progressBar.visibility = View.GONE
-                } else {
-                    binding.progressBar.visibility = View.VISIBLE
+                try {
+                    super.onProgressChanged(view, newProgress)
+                    if (!isDetached && this@BaseWebViewFragment.view != null && ::binding.isInitialized) {
+                        binding.progressBar.progress = newProgress
+                        if (newProgress == 100) {
+                            binding.progressBar.visibility = View.GONE
+                        } else {
+                            binding.progressBar.visibility = View.VISIBLE
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(fragmentTag, "Error in onProgressChanged", e)
                 }
             }
+        }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error setting up WebView", e)
         }
     }
 
     private fun loadUrl() {
         try {
             // بررسی lifecycle
-            if (isDetached || view == null || !isAdded) {
+            if (isDetached || view == null || !isAdded || context == null) {
                 Log.w(fragmentTag, "Fragment not attached, skipping load")
                 return
             }
@@ -206,8 +235,17 @@ abstract class BaseWebViewFragment : Fragment() {
             hideOffline()
             val urlToLoad = dynamicUrl ?: targetUrl
             Log.d(fragmentTag, "Loading URL: $urlToLoad")
-            if (::webView.isInitialized && webView != null) {
-                webView.loadUrl(urlToLoad)
+            if (::webView.isInitialized && ::binding.isInitialized) {
+                // استفاده از post برای اطمینان از اجرا در UI thread
+                view?.post {
+                    if (!isDetached && isAdded && ::webView.isInitialized) {
+                        try {
+                            webView.loadUrl(urlToLoad)
+                        } catch (e: Exception) {
+                            Log.e(fragmentTag, "Error loading URL in post", e)
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(fragmentTag, "Error loading URL", e)
@@ -221,20 +259,29 @@ abstract class BaseWebViewFragment : Fragment() {
     open fun reloadWithUrl(url: String) {
         try {
             // بررسی lifecycle و view state
-            if (isDetached || view == null || !isAdded) {
+            if (isDetached || view == null || !isAdded || context == null) {
                 Log.w(fragmentTag, "Fragment not attached, skipping reload")
                 return
             }
             
             dynamicUrl = url
-            if (::webView.isInitialized && webView != null) {
+            if (::webView.isInitialized && ::binding.isInitialized) {
                 if (!isOnline()) {
                     showOffline()
                     return
                 }
                 hideOffline()
                 Log.d(fragmentTag, "Reloading with new URL: $url")
-                webView.loadUrl(url)
+                // استفاده از post برای اطمینان از اجرا در UI thread
+                view?.post {
+                    if (!isDetached && isAdded && ::webView.isInitialized) {
+                        try {
+                            webView.loadUrl(url)
+                        } catch (e: Exception) {
+                            Log.e(fragmentTag, "Error loading URL in post", e)
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(fragmentTag, "Error reloading URL: $url", e)
@@ -257,32 +304,60 @@ abstract class BaseWebViewFragment : Fragment() {
      * نمایش Loader/Skeleton
      */
     private fun showLoader() {
-        binding.loaderContainer.visibility = View.VISIBLE
-        binding.skeletonView.visibility = View.VISIBLE
+        try {
+            if (!isDetached && view != null && ::binding.isInitialized) {
+                binding.loaderContainer.visibility = View.VISIBLE
+                binding.skeletonView.visibility = View.VISIBLE
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error showing loader", e)
+        }
     }
 
     /**
      * مخفی کردن Loader
      */
     private fun hideLoader() {
-        binding.loaderContainer.visibility = View.GONE
-        binding.skeletonView.visibility = View.GONE
+        try {
+            if (!isDetached && view != null && ::binding.isInitialized) {
+                binding.loaderContainer.visibility = View.GONE
+                binding.skeletonView.visibility = View.GONE
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error hiding loader", e)
+        }
     }
 
     /**
      * نمایش صفحه Offline
      */
     private fun showOffline() {
-        binding.offlineContainer.visibility = View.VISIBLE
-        binding.webView.visibility = View.GONE
+        try {
+            if (!isDetached && view != null && ::binding.isInitialized) {
+                binding.offlineContainer.visibility = View.VISIBLE
+                if (::webView.isInitialized) {
+                    binding.webView.visibility = View.GONE
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error showing offline", e)
+        }
     }
 
     /**
      * مخفی کردن صفحه Offline
      */
     private fun hideOffline() {
-        binding.offlineContainer.visibility = View.GONE
-        binding.webView.visibility = View.VISIBLE
+        try {
+            if (!isDetached && view != null && ::binding.isInitialized) {
+                binding.offlineContainer.visibility = View.GONE
+                if (::webView.isInitialized) {
+                    binding.webView.visibility = View.VISIBLE
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error hiding offline", e)
+        }
     }
 
     /**

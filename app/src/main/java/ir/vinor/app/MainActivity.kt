@@ -24,19 +24,28 @@ class MainActivity : AppCompatActivity() {
     private var currentMenuItems: List<MenuManager.MenuItem> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // اجباری کردن تم تاریک در تمام اپلیکیشن
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-        
-        super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        try {
+            // اجباری کردن تم تاریک در تمام اپلیکیشن
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            
+            super.onCreate(savedInstanceState)
+            binding = ActivityMainBinding.inflate(layoutInflater)
+            setContentView(binding.root)
 
-        setupNavigation()
-        setupBackPressHandler()
-        loadMenuFromAPI()
-        
-        // Connection Test - لاگ برای تست
-        Log.d("MainActivity", "App started - Connection Test")
+            setupNavigation()
+            setupBackPressHandler()
+            // تاخیر کوتاه برای اطمینان از آماده بودن FragmentManager
+            binding.root.post {
+                loadMenuFromAPI()
+            }
+            
+            // Connection Test - لاگ برای تست
+            Log.d("MainActivity", "App started - Connection Test")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error in onCreate", e)
+            // در صورت خطا، اپلیکیشن را ببند
+            finish()
+        }
     }
 
     private fun setupNavigation() {
