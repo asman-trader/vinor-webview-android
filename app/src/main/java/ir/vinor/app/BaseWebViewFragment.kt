@@ -118,6 +118,9 @@ abstract class BaseWebViewFragment : Fragment() {
                 hideLoader()
                 canGoBack = view?.canGoBack() == true
                 Log.d(fragmentTag, "Page finished: $url")
+                
+                // مخفی کردن منوی فوتر سایت در اپلیکیشن
+                hideFooterMenu()
             }
 
             override fun onReceivedError(
@@ -237,6 +240,91 @@ abstract class BaseWebViewFragment : Fragment() {
      */
     fun retryLoad() {
         loadUrl()
+    }
+
+    /**
+     * مخفی کردن منوی فوتر سایت با JavaScript
+     * منوی فوتر با ID bottomNavMenu و کلاس fixed inset-x-0 bottom-0 است
+     */
+    private fun hideFooterMenu() {
+        if (!::webView.isInitialized) return
+        
+        // JavaScript برای مخفی کردن منوی فوتر
+        val hideFooterScript = """
+            (function() {
+                // Selectorهای مختلف برای منوی فوتر
+                var selectors = [
+                    '#bottomNavMenu',                    // منوی اصلی فوتر
+                    'nav#bottomNavMenu',                // nav با ID bottomNavMenu
+                    '.fixed.inset-x-0.bottom-0',        // کلاس‌های منوی فوتر
+                    'footer nav',
+                    'footer .menu',
+                    'footer .footer-menu',
+                    '.footer-menu',
+                    '.bottom-nav',
+                    '#footer-menu',
+                    'nav.footer-menu',
+                    '.app-footer',
+                    'footer .bottom-navigation',
+                    '[class*="footer"] [class*="menu"]',
+                    '[class*="footer"] nav',
+                    'footer [class*="nav"]'
+                ];
+                
+                function hideElements() {
+                    selectors.forEach(function(selector) {
+                        try {
+                            var elements = document.querySelectorAll(selector);
+                            elements.forEach(function(el) {
+                                if (el) {
+                                    el.style.display = 'none';
+                                    el.style.visibility = 'hidden';
+                                    el.style.height = '0';
+                                    el.style.overflow = 'hidden';
+                                    el.style.margin = '0';
+                                    el.style.padding = '0';
+                                }
+                            });
+                        } catch(e) {}
+                    });
+                }
+                
+                // اجرای فوری
+                hideElements();
+                
+                // اجرای مجدد بعد از لود کامل DOM
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', hideElements);
+                }
+                
+                // اجرای مجدد بعد از لود کامل صفحه
+                window.addEventListener('load', hideElements);
+                
+                // اجرای مجدد بعد از تغییرات DOM (برای SPA)
+                setTimeout(hideElements, 100);
+                setTimeout(hideElements, 500);
+                setTimeout(hideElements, 1000);
+                setTimeout(hideElements, 2000);
+                
+                // Observer برای تغییرات DOM (برای SPA)
+                if (window.MutationObserver) {
+                    var observer = new MutationObserver(function(mutations) {
+                        hideElements();
+                    });
+                    observer.observe(document.body, {
+                        childList: true,
+                        subtree: true
+                    });
+                }
+            })();
+        """.trimIndent()
+        
+        try {
+            webView.evaluateJavascript(hideFooterScript, null)
+            Log.d(fragmentTag, "Footer menu hidden")
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error hiding footer menu", e)
+        }
     }
 
     /**
