@@ -10,6 +10,7 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,7 @@ import kotlinx.coroutines.withContext
  * Lightweight entry screen focused on fastest first frame and immediate feedback.
  * - No animations or delays
  * - Checks connectivity, pre-warms WebView after first frame, then hands off
+ * - تم تاریک به صورت پیش‌فرض فعال است
  */
 class PreloaderActivity : AppCompatActivity() {
 
@@ -28,6 +30,9 @@ class PreloaderActivity : AppCompatActivity() {
     private lateinit var retry: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // اجباری کردن تم تاریک
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_preloader)
 

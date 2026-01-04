@@ -81,6 +81,11 @@ abstract class BaseWebViewFragment : Fragment() {
         settings.allowFileAccessFromFileURLs = false
         settings.allowUniversalAccessFromFileURLs = false
         settings.userAgentString = settings.userAgentString + " VinorApp/Android"
+        
+        // پشتیبانی از تم تاریک در WebView
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            settings.forceDark = WebSettings.FORCE_DARK_ON
+        }
 
         // WebViewClient برای مدیریت navigation و errors
         webView.webViewClient = object : WebViewClient() {
@@ -121,6 +126,9 @@ abstract class BaseWebViewFragment : Fragment() {
                 
                 // مخفی کردن منوی فوتر سایت در اپلیکیشن
                 hideFooterMenu()
+                
+                // فعال کردن تم تاریک در صفحه وب
+                enableDarkMode()
             }
 
             override fun onReceivedError(
@@ -325,6 +333,58 @@ abstract class BaseWebViewFragment : Fragment() {
             Log.d(fragmentTag, "Footer menu hidden")
         } catch (e: Exception) {
             Log.e(fragmentTag, "Error hiding footer menu", e)
+        }
+    }
+
+    /**
+     * فعال کردن تم تاریک در صفحه وب با JavaScript
+     */
+    private fun enableDarkMode() {
+        if (!::webView.isInitialized) return
+        
+        // JavaScript برای فعال کردن تم تاریک
+        val darkModeScript = """
+            (function() {
+                // اضافه کردن کلاس dark به html element
+                if (document.documentElement) {
+                    document.documentElement.classList.add('dark');
+                }
+                
+                // اضافه کردن attribute data-theme
+                if (document.documentElement) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+                
+                // اضافه کردن meta tag برای تم تاریک
+                var metaTheme = document.querySelector('meta[name="color-scheme"]');
+                if (!metaTheme) {
+                    metaTheme = document.createElement('meta');
+                    metaTheme.name = 'color-scheme';
+                    metaTheme.content = 'dark';
+                    document.head.appendChild(metaTheme);
+                } else {
+                    metaTheme.content = 'dark';
+                }
+                
+                // اضافه کردن style برای اطمینان از تم تاریک
+                var styleId = 'vinor-dark-mode-style';
+                if (!document.getElementById(styleId)) {
+                    var style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        html { color-scheme: dark !important; }
+                        body { background-color: #111827 !important; color: #F9FAFB !important; }
+                    `;
+                    document.head.appendChild(style);
+                }
+            })();
+        """.trimIndent()
+        
+        try {
+            webView.evaluateJavascript(darkModeScript, null)
+            Log.d(fragmentTag, "Dark mode enabled")
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error enabling dark mode", e)
         }
     }
 
