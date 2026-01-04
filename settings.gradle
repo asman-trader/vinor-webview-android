@@ -1,8 +1,9 @@
 pluginManagement {
     repositories {
+        // Try gradlePluginPortal first for better CI compatibility
+        gradlePluginPortal()
         google()
         mavenCentral()
-        gradlePluginPortal()
     }
     // Map plugin IDs to coordinates to avoid plugin-portal resolution issues in CI
     resolutionStrategy {
