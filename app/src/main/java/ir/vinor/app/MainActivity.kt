@@ -116,9 +116,27 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     "https://vinor.ir${menuItem.url}"
                 }
-                // فقط اگر URL متفاوت است، reload کن
-                if (currentFragment.getCurrentUrl() != fullUrl) {
-                    currentFragment.reloadWithUrl(fullUrl)
+                val currentUrl = currentFragment.getCurrentUrl()
+                
+                // برای Dashboard: اگر در همان تب هستیم و URL یکسان است، refresh کن
+                if (fragmentId == R.id.dashboardFragment && currentFragment is DashboardFragment) {
+                    val isSameUrl = currentUrl != null && (
+                        currentUrl == fullUrl || 
+                        currentUrl.contains("/express/partner/dashboard")
+                    )
+                    if (isSameUrl) {
+                        // اگر در همان تب و همان URL هستیم، refresh کن
+                        Log.d("MainActivity", "Dashboard tab selected - refreshing")
+                        currentFragment.reloadWithUrl(fullUrl)
+                    } else {
+                        // اگر URL متفاوت است، load کن
+                        currentFragment.reloadWithUrl(fullUrl)
+                    }
+                } else {
+                    // برای سایر تب‌ها: فقط اگر URL متفاوت است، reload کن
+                    if (currentUrl != fullUrl) {
+                        currentFragment.reloadWithUrl(fullUrl)
+                    }
                 }
             }
         }
