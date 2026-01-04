@@ -6,7 +6,7 @@ package ir.vinor.app
  * نیاز به لاگین دارد - اگر لاگین نباشد به /express/partner/login ریدایرکت می‌شود
  */
 class MessagesFragment : BaseWebViewFragment() {
-    override val targetUrl = "https://vinor.ir/express/partner/notifications"
-    override val fragmentTag = "MessagesFragment"
+    override val targetUrl: String = "https://vinor.ir/express/partner/notifications"
+    override val fragmentTag: String = "MessagesFragment"
 }
 

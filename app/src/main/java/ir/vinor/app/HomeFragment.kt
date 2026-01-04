@@ -5,7 +5,7 @@ package ir.vinor.app
  * URL: /public
  */
 class HomeFragment : BaseWebViewFragment() {
-    override val targetUrl = "https://vinor.ir/public"
-    override val fragmentTag = "HomeFragment"
+    override val targetUrl: String = "https://vinor.ir/public"
+    override val fragmentTag: String = "HomeFragment"
 }
 

@@ -5,7 +5,7 @@ package ir.vinor.app
  * URL: /public
  */
 class SearchFragment : BaseWebViewFragment() {
-    override val targetUrl = "https://vinor.ir/public"
-    override val fragmentTag = "SearchFragment"
+    override val targetUrl: String = "https://vinor.ir/public"
+    override val fragmentTag: String = "SearchFragment"
 }
 

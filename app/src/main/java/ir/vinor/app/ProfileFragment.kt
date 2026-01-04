@@ -6,7 +6,7 @@ package ir.vinor.app
  * نیاز به لاگین دارد - اگر لاگین نباشد به /express/partner/login ریدایرکت می‌شود
  */
 class ProfileFragment : BaseWebViewFragment() {
-    override val targetUrl = "https://vinor.ir/express/partner/profile"
-    override val fragmentTag = "ProfileFragment"
+    override val targetUrl: String = "https://vinor.ir/express/partner/profile"
+    override val fragmentTag: String = "ProfileFragment"
 }
 

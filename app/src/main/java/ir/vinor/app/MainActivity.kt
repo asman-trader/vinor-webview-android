@@ -1,10 +1,9 @@
 package ir.vinor.app
 
-import android.content.DialogInterface
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
@@ -54,39 +53,42 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupBackPressHandler() {
         // Back handling هوشمند
-        onBackPressedDispatcher.addCallback(this) {
-            val navHostFragment = supportFragmentManager
-                .findFragmentById(R.id.navHostFragment) as? NavHostFragment
-            val currentFragment = navHostFragment?.childFragmentManager?.fragments?.firstOrNull()
+        val callback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val navHostFragment = supportFragmentManager
+                    .findFragmentById(R.id.navHostFragment) as? NavHostFragment
+                val currentFragment = navHostFragment?.childFragmentManager?.fragments?.firstOrNull()
 
-            when {
-                // اگر Fragment یک BaseWebViewFragment است و WebView history دارد
-                currentFragment is BaseWebViewFragment && currentFragment.canGoBackInWebView() -> {
-                    currentFragment.goBackInWebView()
-                    Log.d("MainActivity", "WebView goBack")
-                }
-                
-                // اگر در ریشه تب هستیم (نه خانه) => به خانه برگرد
-                currentFragment is BaseWebViewFragment && 
-                currentFragment.isAtRoot() && 
-                navHostFragment?.navController?.currentDestination?.id != R.id.homeFragment -> {
-                    navHostFragment?.navController?.navigate(R.id.homeFragment)
-                    Log.d("MainActivity", "Navigated to Home tab")
-                }
-                
-                // اگر در خانه و ریشه هستیم => Confirm خروج
-                navHostFragment?.navController?.currentDestination?.id == R.id.homeFragment -> {
-                    handleExitConfirmation()
-                }
-                
-                // در غیر این صورت، Navigation Component خودش handle می‌کند
-                else -> {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
-                    isEnabled = true
+                when {
+                    // اگر Fragment یک BaseWebViewFragment است و WebView history دارد
+                    currentFragment is BaseWebViewFragment && currentFragment.canGoBackInWebView() -> {
+                        currentFragment.goBackInWebView()
+                        Log.d("MainActivity", "WebView goBack")
+                    }
+                    
+                    // اگر در ریشه تب هستیم (نه خانه) => به خانه برگرد
+                    currentFragment is BaseWebViewFragment && 
+                    currentFragment.isAtRoot() && 
+                    navHostFragment?.navController?.currentDestination?.id != R.id.homeFragment -> {
+                        navHostFragment?.navController?.navigate(R.id.homeFragment)
+                        Log.d("MainActivity", "Navigated to Home tab")
+                    }
+                    
+                    // اگر در خانه و ریشه هستیم => Confirm خروج
+                    navHostFragment?.navController?.currentDestination?.id == R.id.homeFragment -> {
+                        handleExitConfirmation()
+                    }
+                    
+                    // در غیر این صورت، Navigation Component خودش handle می‌کند
+                    else -> {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
+                    }
                 }
             }
         }
+        onBackPressedDispatcher.addCallback(this, callback)
     }
 
     private fun handleExitConfirmation() {
@@ -118,11 +120,7 @@ class MainActivity : AppCompatActivity() {
             Log.d("MainActivity", "Current Tab: ${currentFragment.fragmentTag}")
             Log.d("MainActivity", "Target URL: ${currentFragment.targetUrl}")
             val currentUrl = try {
-                if (currentFragment::webView.isInitialized) {
-                    currentFragment.webView.url ?: "Not loaded"
-                } else {
-                    "WebView not initialized"
-                }
+                currentFragment.getCurrentUrl() ?: "Not loaded"
             } catch (e: Exception) {
                 "Error getting URL: ${e.message}"
             }

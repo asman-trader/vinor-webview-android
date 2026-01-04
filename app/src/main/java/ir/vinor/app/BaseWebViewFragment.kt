@@ -25,8 +25,13 @@ abstract class BaseWebViewFragment : Fragment() {
 
     protected lateinit var binding: FragmentWebviewBinding
     protected lateinit var webView: WebView
-    protected abstract val targetUrl: String
-    protected abstract val fragmentTag: String // برای لاگ
+    abstract val targetUrl: String
+    abstract val fragmentTag: String // برای لاگ
+    
+    // Public getters for MainActivity access
+    fun getCurrentUrl(): String? {
+        return if (::webView.isInitialized) webView.url else null
+    }
 
     private var canGoBack = false
 
@@ -60,7 +65,7 @@ abstract class BaseWebViewFragment : Fragment() {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
-        settings.setAppCacheEnabled(true)
+        // setAppCacheEnabled deprecated و حذف شده - از cacheMode استفاده می‌کنیم
         settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.loadWithOverviewMode = true
         settings.useWideViewPort = true
