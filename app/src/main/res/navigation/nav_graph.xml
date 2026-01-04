@@ -3,40 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/homeFragment">
+    app:startDestination="@id/dashboardFragment">
 
-    <!-- منوی عمومی -->
-    <fragment
-        android:id="@+id/homeFragment"
-        android:name="ir.vinor.app.HomeFragment"
-        android:label="خانه"
-        tools:layout="@layout/fragment_webview" />
-
-    <fragment
-        android:id="@+id/exploreFragment"
-        android:name="ir.vinor.app.ExploreFragment"
-        android:label="اکسپلور"
-        tools:layout="@layout/fragment_webview" />
-
-    <fragment
-        android:id="@+id/helpFragment"
-        android:name="ir.vinor.app.HelpFragment"
-        android:label="راهنما"
-        tools:layout="@layout/fragment_webview" />
-
-    <fragment
-        android:id="@+id/aboutFragment"
-        android:name="ir.vinor.app.AboutFragment"
-        android:label="درباره"
-        tools:layout="@layout/fragment_webview" />
-
-    <fragment
-        android:id="@+id/loginFragment"
-        android:name="ir.vinor.app.LoginFragment"
-        android:label="ورود"
-        tools:layout="@layout/fragment_webview" />
-
-    <!-- منوی همکار اکسپرس -->
+    <!-- منوی همکار اکسپرس - 5 تب -->
     <fragment
         android:id="@+id/dashboardFragment"
         android:name="ir.vinor.app.DashboardFragment"

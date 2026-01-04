@@ -30,20 +30,14 @@ object MenuManager {
     
     /**
      * Mapping بین key منوی سایت و Fragment ID
+     * فقط 5 تب همکار اکسپرس: خانه، پورسانت، اکسپلور، روتین، من
      */
     private val keyToFragmentId = mapOf(
-        // منوی عمومی
-        "home" to R.id.homeFragment,
-        "explore" to R.id.exploreFragment,
-        "help" to R.id.helpFragment,
-        "about" to R.id.aboutFragment,
-        "login" to R.id.loginFragment,
-        // منوی همکار
-        "dashboard" to R.id.dashboardFragment,
-        "commissions" to R.id.commissionsFragment,
-        "express" to R.id.expressFragment,
-        "routine" to R.id.routineFragment,
-        "profile" to R.id.profileFragment
+        "dashboard" to R.id.dashboardFragment,      // خانه
+        "commissions" to R.id.commissionsFragment,  // پورسانت
+        "express" to R.id.expressFragment,          // اکسپلور
+        "routine" to R.id.routineFragment,          // روتین
+        "profile" to R.id.profileFragment           // من
     )
     
     
@@ -138,15 +132,15 @@ object MenuManager {
     }
     
     /**
-     * منوی پیش‌فرض (منوی عمومی)
+     * منوی پیش‌فرض - 5 تب همکار اکسپرس
      */
     fun getDefaultMenu(): List<MenuItem> {
         return listOf(
-            MenuItem("home", "https://vinor.ir/", "fa-home", "خانه", R.id.homeFragment),
-            MenuItem("explore", "https://vinor.ir/public", "fa-magnifying-glass", "اکسپلور", R.id.exploreFragment),
-            MenuItem("help", "https://vinor.ir/help", "fa-question-circle", "راهنما", R.id.helpFragment),
-            MenuItem("about", "https://vinor.ir/", "fa-info-circle", "درباره", R.id.aboutFragment),
-            MenuItem("login", "https://vinor.ir/express/partner/login", "fa-user", "ورود", R.id.loginFragment)
+            MenuItem("dashboard", "https://vinor.ir/express/partner/dashboard", "fa-home", "خانه", R.id.dashboardFragment),
+            MenuItem("commissions", "https://vinor.ir/express/partner/commissions", "fa-chart-line", "پورسانت", R.id.commissionsFragment),
+            MenuItem("express", "https://vinor.ir/express/partner/explore", "fa-magnifying-glass", "اکسپلور", R.id.expressFragment),
+            MenuItem("routine", "https://vinor.ir/express/partner/routine", "fa-list-check", "روتین", R.id.routineFragment),
+            MenuItem("profile", "https://vinor.ir/express/partner/profile", "fa-user", "من", R.id.profileFragment)
         )
     }
 }

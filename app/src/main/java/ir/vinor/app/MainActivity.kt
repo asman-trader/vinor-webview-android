@@ -11,7 +11,8 @@ import androidx.navigation.ui.setupWithNavController
 import ir.vinor.app.databinding.ActivityMainBinding
 
 /**
- * MainActivity با Bottom Navigation داینامیک - هماهنگ با منوی سایت
+ * MainActivity با Bottom Navigation - 5 تب همکار اکسپرس:
+ * خانه، پورسانت، اکسپلور، روتین، من
  */
 class MainActivity : AppCompatActivity() {
 
@@ -158,7 +159,7 @@ class MainActivity : AppCompatActivity() {
                     // اگر در ریشه تب هستیم (نه خانه) => به خانه برگرد
                     currentFragment is BaseWebViewFragment && 
                     currentFragment.isAtRoot() -> {
-                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.homeFragment
+                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
                         if (navHostFragment?.navController?.currentDestination?.id != homeFragmentId) {
                             navHostFragment?.navController?.navigate(homeFragmentId)
                             Log.d("MainActivity", "Navigated to Home tab")
@@ -169,7 +170,7 @@ class MainActivity : AppCompatActivity() {
                     
                     // اگر در خانه و ریشه هستیم => Confirm خروج
                     else -> {
-                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.homeFragment
+                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
                         if (navHostFragment?.navController?.currentDestination?.id == homeFragmentId) {
                             handleExitConfirmation()
                         } else {

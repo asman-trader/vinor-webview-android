@@ -1,10 +1,10 @@
 package ir.vinor.app
 
 /**
- * تب اکسپلور - برای کاربران عمومی و همکاران اکسپرس
- * URL: /public (عمومی) یا /express/partner/explore (همکار)
+ * تب اکسپلور - برای همکاران اکسپرس
+ * URL: /express/partner/explore
  */
 class ExploreFragment : BaseWebViewFragment() {
-    override val targetUrl: String = "https://vinor.ir/public"
+    override val targetUrl: String = "https://vinor.ir/express/partner/explore"
     override val fragmentTag: String = "ExploreFragment"
 }
