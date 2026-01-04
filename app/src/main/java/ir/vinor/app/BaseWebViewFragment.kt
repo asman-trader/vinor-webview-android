@@ -33,7 +33,16 @@ abstract class BaseWebViewFragment : Fragment() {
     
     // Public getters for MainActivity access
     fun getCurrentUrl(): String? {
-        return if (::webView.isInitialized) webView.url else null
+        return try {
+            if (::webView.isInitialized && view != null && !isDetached) {
+                webView.url
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error getting current URL", e)
+            null
+        }
     }
 
     private var canGoBack = false
@@ -111,24 +120,36 @@ abstract class BaseWebViewFragment : Fragment() {
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                super.onPageStarted(view, url, favicon)
-                showLoader()
-                hideOffline()
-                canGoBack = view?.canGoBack() == true
-                Log.d(fragmentTag, "Page started: $url")
+                try {
+                    super.onPageStarted(view, url, favicon)
+                    if (!isDetached && view != null) {
+                        showLoader()
+                        hideOffline()
+                        canGoBack = view.canGoBack()
+                        Log.d(fragmentTag, "Page started: $url")
+                    }
+                } catch (e: Exception) {
+                    Log.e(fragmentTag, "Error in onPageStarted", e)
+                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                hideLoader()
-                canGoBack = view?.canGoBack() == true
-                Log.d(fragmentTag, "Page finished: $url")
-                
-                // مخفی کردن منوی فوتر سایت در اپلیکیشن
-                hideFooterMenu()
-                
-                // فعال کردن تم تاریک در صفحه وب
-                enableDarkMode()
+                try {
+                    super.onPageFinished(view, url)
+                    if (!isDetached && view != null) {
+                        hideLoader()
+                        canGoBack = view.canGoBack()
+                        Log.d(fragmentTag, "Page finished: $url")
+                        
+                        // مخفی کردن منوی فوتر سایت در اپلیکیشن
+                        hideFooterMenu()
+                        
+                        // فعال کردن تم تاریک در صفحه وب
+                        enableDarkMode()
+                    }
+                } catch (e: Exception) {
+                    Log.e(fragmentTag, "Error in onPageFinished", e)
+                }
             }
 
             override fun onReceivedError(
@@ -171,15 +192,25 @@ abstract class BaseWebViewFragment : Fragment() {
     }
 
     private fun loadUrl() {
-        if (!isOnline()) {
-            showOffline()
-            return
-        }
-        hideOffline()
-        val urlToLoad = dynamicUrl ?: targetUrl
-        Log.d(fragmentTag, "Loading URL: $urlToLoad")
-        if (::webView.isInitialized) {
-            webView.loadUrl(urlToLoad)
+        try {
+            // بررسی lifecycle
+            if (isDetached || view == null || !isAdded) {
+                Log.w(fragmentTag, "Fragment not attached, skipping load")
+                return
+            }
+            
+            if (!isOnline()) {
+                showOffline()
+                return
+            }
+            hideOffline()
+            val urlToLoad = dynamicUrl ?: targetUrl
+            Log.d(fragmentTag, "Loading URL: $urlToLoad")
+            if (::webView.isInitialized && webView != null) {
+                webView.loadUrl(urlToLoad)
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error loading URL", e)
         }
     }
     
@@ -188,15 +219,25 @@ abstract class BaseWebViewFragment : Fragment() {
      * open است تا بتوان در Fragmentهای فرزند override کرد
      */
     open fun reloadWithUrl(url: String) {
-        dynamicUrl = url
-        if (::webView.isInitialized) {
-            if (!isOnline()) {
-                showOffline()
+        try {
+            // بررسی lifecycle و view state
+            if (isDetached || view == null || !isAdded) {
+                Log.w(fragmentTag, "Fragment not attached, skipping reload")
                 return
             }
-            hideOffline()
-            Log.d(fragmentTag, "Reloading with new URL: $url")
-            webView.loadUrl(url)
+            
+            dynamicUrl = url
+            if (::webView.isInitialized && webView != null) {
+                if (!isOnline()) {
+                    showOffline()
+                    return
+                }
+                hideOffline()
+                Log.d(fragmentTag, "Reloading with new URL: $url")
+                webView.loadUrl(url)
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error reloading URL: $url", e)
         }
     }
 
@@ -256,7 +297,7 @@ abstract class BaseWebViewFragment : Fragment() {
      * منوی فوتر با ID bottomNavMenu و کلاس fixed inset-x-0 bottom-0 است
      */
     private fun hideFooterMenu() {
-        if (!::webView.isInitialized) return
+        if (!::webView.isInitialized || webView == null || view == null || isDetached) return
         
         // JavaScript برای مخفی کردن منوی فوتر
         val hideFooterScript = """
@@ -340,7 +381,7 @@ abstract class BaseWebViewFragment : Fragment() {
      * فعال کردن تم تاریک در صفحه وب با JavaScript
      */
     private fun enableDarkMode() {
-        if (!::webView.isInitialized) return
+        if (!::webView.isInitialized || webView == null || view == null || isDetached) return
         
         // JavaScript برای فعال کردن تم تاریک
         val darkModeScript = """
@@ -392,9 +433,14 @@ abstract class BaseWebViewFragment : Fragment() {
      * بررسی اینکه آیا WebView می‌تواند به عقب برگردد
      */
     fun canGoBackInWebView(): Boolean {
-        return if (::webView.isInitialized) {
-            webView.canGoBack()
-        } else {
+        return try {
+            if (::webView.isInitialized && webView != null && view != null && !isDetached) {
+                webView.canGoBack()
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error checking canGoBack", e)
             false
         }
     }
@@ -403,10 +449,15 @@ abstract class BaseWebViewFragment : Fragment() {
      * برگشت در WebView history
      */
     fun goBackInWebView(): Boolean {
-        return if (::webView.isInitialized && webView.canGoBack()) {
-            webView.goBack()
-            true
-        } else {
+        return try {
+            if (::webView.isInitialized && webView != null && view != null && !isDetached && webView.canGoBack()) {
+                webView.goBack()
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error going back in WebView", e)
             false
         }
     }
@@ -415,37 +466,63 @@ abstract class BaseWebViewFragment : Fragment() {
      * بررسی اینکه آیا در ریشه تب هستیم (URL اصلی)
      */
     fun isAtRoot(): Boolean {
-        if (!::webView.isInitialized) return true
-        val currentUrl = webView.url ?: ""
-        if (currentUrl.isEmpty()) return true
-        
-        // بررسی اینکه آیا URL فعلی همان targetUrl است یا به آن ختم می‌شود
-        val cleanTarget = targetUrl.replace("https://", "").replace("http://", "")
-        val cleanCurrent = currentUrl.replace("https://", "").replace("http://", "")
-        
-        return currentUrl == targetUrl || 
-               currentUrl.endsWith(targetUrl) ||
-               cleanCurrent == cleanTarget ||
-               cleanCurrent.startsWith(cleanTarget + "/")
+        return try {
+            if (!::webView.isInitialized || webView == null || view == null || isDetached) {
+                return true
+            }
+            
+            val currentUrl = webView.url ?: ""
+            if (currentUrl.isEmpty()) return true
+            
+            // بررسی اینکه آیا URL فعلی همان targetUrl است یا به آن ختم می‌شود
+            val cleanTarget = targetUrl.replace("https://", "").replace("http://", "")
+            val cleanCurrent = currentUrl.replace("https://", "").replace("http://", "")
+            
+            currentUrl == targetUrl || 
+            currentUrl.endsWith(targetUrl) ||
+            cleanCurrent == cleanTarget ||
+            cleanCurrent.startsWith(cleanTarget + "/")
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error checking isAtRoot", e)
+            true
+        }
     }
 
     override fun onPause() {
         super.onPause()
-        if (::webView.isInitialized) {
-            webView.onPause()
+        try {
+            if (::webView.isInitialized && webView != null && view != null) {
+                webView.onPause()
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error in onPause", e)
         }
     }
 
     override fun onResume() {
         super.onResume()
-        if (::webView.isInitialized) {
-            webView.onResume()
+        try {
+            if (::webView.isInitialized && webView != null && view != null) {
+                webView.onResume()
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error in onResume", e)
         }
     }
 
     override fun onDestroyView() {
-        if (::webView.isInitialized) {
-            webView.destroy()
+        try {
+            if (::webView.isInitialized && webView != null) {
+                // حذف WebViewClient و WebChromeClient برای جلوگیری از memory leaks
+                webView.webViewClient = null
+                webView.webChromeClient = null
+                // حذف WebView از parent
+                (webView.parent as? android.view.ViewGroup)?.removeView(webView)
+                // destroy WebView
+                webView.destroy()
+            }
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error in onDestroyView", e)
         }
         super.onDestroyView()
     }

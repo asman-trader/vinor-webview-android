@@ -105,23 +105,34 @@ class MainActivity : AppCompatActivity() {
      * به‌روزرسانی URL Fragment بر اساس منوی API
      */
     private fun updateFragmentUrlFromMenu(fragmentId: Int) {
-        val menuItem = currentMenuItems.find { it.fragmentId == fragmentId }
-        if (menuItem != null) {
-            val navHostFragment = supportFragmentManager
-                .findFragmentById(R.id.navHostFragment) as? NavHostFragment
-            val currentFragment = navHostFragment?.childFragmentManager?.fragments?.firstOrNull()
-            
-            if (currentFragment is BaseWebViewFragment) {
-                val fullUrl = if (menuItem.url.startsWith("http")) {
-                    menuItem.url
-                } else {
-                    "https://vinor.ir${menuItem.url}"
+        try {
+            val menuItem = currentMenuItems.find { it.fragmentId == fragmentId }
+            if (menuItem != null) {
+                val navHostFragment = supportFragmentManager
+                    .findFragmentById(R.id.navHostFragment) as? NavHostFragment
+                
+                if (navHostFragment == null) {
+                    Log.w("MainActivity", "NavHostFragment is null")
+                    return
                 }
-                // فقط اگر URL متفاوت است، reload کن
-                if (currentFragment.getCurrentUrl() != fullUrl) {
-                    currentFragment.reloadWithUrl(fullUrl)
+                
+                val currentFragment = navHostFragment.childFragmentManager.fragments.firstOrNull()
+                
+                if (currentFragment is BaseWebViewFragment && currentFragment.isAdded && !currentFragment.isDetached) {
+                    val fullUrl = if (menuItem.url.startsWith("http")) {
+                        menuItem.url
+                    } else {
+                        "https://vinor.ir${menuItem.url}"
+                    }
+                    // فقط اگر URL متفاوت است، reload کن
+                    val currentUrl = currentFragment.getCurrentUrl()
+                    if (currentUrl != fullUrl) {
+                        currentFragment.reloadWithUrl(fullUrl)
+                    }
                 }
             }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error updating fragment URL", e)
         }
     }
 
@@ -150,40 +161,68 @@ class MainActivity : AppCompatActivity() {
         // Back handling هوشمند
         val callback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                val navHostFragment = supportFragmentManager
-                    .findFragmentById(R.id.navHostFragment) as? NavHostFragment
-                val currentFragment = navHostFragment?.childFragmentManager?.fragments?.firstOrNull()
+                try {
+                    val navHostFragment = supportFragmentManager
+                        .findFragmentById(R.id.navHostFragment) as? NavHostFragment
+                    
+                    if (navHostFragment == null) {
+                        handleExitConfirmation()
+                        return
+                    }
+                    
+                    val currentFragment = navHostFragment.childFragmentManager.fragments.firstOrNull()
 
-                when {
-                    // اگر Fragment یک BaseWebViewFragment است و WebView history دارد
-                    currentFragment is BaseWebViewFragment && currentFragment.canGoBackInWebView() -> {
-                        currentFragment.goBackInWebView()
-                        Log.d("MainActivity", "WebView goBack")
-                    }
-                    
-                    // اگر در ریشه تب هستیم (نه خانه) => به خانه برگرد
-                    currentFragment is BaseWebViewFragment && 
-                    currentFragment.isAtRoot() -> {
-                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
-                        if (navHostFragment?.navController?.currentDestination?.id != homeFragmentId) {
-                            navHostFragment?.navController?.navigate(homeFragmentId)
-                            Log.d("MainActivity", "Navigated to Home tab")
-                        } else {
-                            handleExitConfirmation()
+                    when {
+                        // اگر Fragment یک BaseWebViewFragment است و WebView history دارد
+                        currentFragment is BaseWebViewFragment && 
+                        currentFragment.isAdded && 
+                        !currentFragment.isDetached &&
+                        currentFragment.canGoBackInWebView() -> {
+                            currentFragment.goBackInWebView()
+                            Log.d("MainActivity", "WebView goBack")
+                        }
+                        
+                        // اگر در ریشه تب هستیم (نه خانه) => به خانه برگرد
+                        currentFragment is BaseWebViewFragment && 
+                        currentFragment.isAdded && 
+                        !currentFragment.isDetached &&
+                        currentFragment.isAtRoot() -> {
+                            val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
+                            val navController = navHostFragment.navController
+                            if (navController.currentDestination?.id != homeFragmentId) {
+                                try {
+                                    navController.navigate(homeFragmentId)
+                                    Log.d("MainActivity", "Navigated to Home tab")
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error navigating to home", e)
+                                    handleExitConfirmation()
+                                }
+                            } else {
+                                handleExitConfirmation()
+                            }
+                        }
+                        
+                        // اگر در خانه و ریشه هستیم => Confirm خروج
+                        else -> {
+                            val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
+                            val navController = navHostFragment.navController
+                            if (navController.currentDestination?.id == homeFragmentId) {
+                                handleExitConfirmation()
+                            } else {
+                                try {
+                                    isEnabled = false
+                                    onBackPressedDispatcher.onBackPressed()
+                                    isEnabled = true
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error handling back press", e)
+                                    handleExitConfirmation()
+                                }
+                            }
                         }
                     }
-                    
-                    // اگر در خانه و ریشه هستیم => Confirm خروج
-                    else -> {
-                        val homeFragmentId = currentMenuItems.firstOrNull()?.fragmentId ?: R.id.dashboardFragment
-                        if (navHostFragment?.navController?.currentDestination?.id == homeFragmentId) {
-                            handleExitConfirmation()
-                        } else {
-                            isEnabled = false
-                            onBackPressedDispatcher.onBackPressed()
-                            isEnabled = true
-                        }
-                    }
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error in back press handler", e)
+                    handleExitConfirmation()
                 }
             }
         }
