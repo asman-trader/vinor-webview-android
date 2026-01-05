@@ -127,6 +127,9 @@ abstract class BaseWebViewFragment : Fragment() {
                 // مخفی کردن منوی فوتر سایت در اپلیکیشن
                 hideFooterMenu()
                 
+                // مخفی کردن هدر سایت در اپلیکیشن (مانند فوتر)
+                hideHeader()
+                
                 // فعال کردن تم تاریک در صفحه وب
                 enableDarkMode()
             }
@@ -258,6 +261,106 @@ abstract class BaseWebViewFragment : Fragment() {
     protected fun reloadWebView() {
         if (::webView.isInitialized) {
             webView.reload()
+        }
+    }
+
+    /**
+     * مخفی کردن هدر سایت با JavaScript (مانند فوتر)
+     * هدرها با کلاس fixed top-0 یا sticky top-0 هستند
+     */
+    private fun hideHeader() {
+        if (!::webView.isInitialized) return
+        
+        // JavaScript برای مخفی کردن هدر
+        val hideHeaderScript = """
+            (function() {
+                // Selectorهای مختلف برای هدر
+                var selectors = [
+                    'header',                          // همه هدرها
+                    'header.fixed',                    // هدر fixed
+                    'header.sticky',                   // هدر sticky
+                    'header.fixed.top-0',              // هدر fixed top-0
+                    'header.sticky.top-0',            // هدر sticky top-0
+                    'header[class*="fixed"][class*="top-0"]',  // هدر fixed با کلاس‌های مختلف
+                    'header[class*="sticky"][class*="top-0"]', // هدر sticky با کلاس‌های مختلف
+                    'header[class*="fixed top-0"]',    // هدر fixed top-0
+                    'header[class*="sticky top-0"]',   // هدر sticky top-0
+                    'header[class*="fixed left-0 right-0"]', // هدر fixed تمام‌عرض
+                    'header[data-tour*="header"]',     // هدر با data-tour
+                    'header[data-tour*="dashboard-header"]' // هدر داشبورد
+                ];
+                
+                function hideElements() {
+                    selectors.forEach(function(selector) {
+                        try {
+                            var elements = document.querySelectorAll(selector);
+                            elements.forEach(function(el) {
+                                if (!el) return;
+                                
+                                // بررسی اینکه آیا element واقعاً هدر است (نه فوتر)
+                                var tagName = el.tagName ? el.tagName.toLowerCase() : '';
+                                var isHeaderTag = tagName === 'header';
+                                
+                                // بررسی اینکه element در بالای صفحه است (نه پایین)
+                                var rect = el.getBoundingClientRect();
+                                var isAtTop = rect.top <= 50; // اگر در 50px بالای صفحه باشد
+                                
+                                // بررسی کلاس‌های fixed یا sticky
+                                var hasFixedOrSticky = el.className && (
+                                    el.className.includes('fixed') || 
+                                    el.className.includes('sticky')
+                                );
+                                
+                                // فقط هدرهای واقعی که در بالای صفحه هستند را مخفی کن
+                                if (isHeaderTag && isAtTop && hasFixedOrSticky) {
+                                    el.style.display = 'none';
+                                    el.style.visibility = 'hidden';
+                                    el.style.height = '0';
+                                    el.style.overflow = 'hidden';
+                                    el.style.margin = '0';
+                                    el.style.padding = '0';
+                                    el.style.opacity = '0';
+                                }
+                            });
+                        } catch(e) {}
+                    });
+                }
+                
+                // اجرای فوری
+                hideElements();
+                
+                // اجرای مجدد بعد از لود کامل DOM
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', hideElements);
+                }
+                
+                // اجرای مجدد بعد از لود کامل صفحه
+                window.addEventListener('load', hideElements);
+                
+                // اجرای مجدد بعد از تغییرات DOM (برای SPA)
+                setTimeout(hideElements, 100);
+                setTimeout(hideElements, 500);
+                setTimeout(hideElements, 1000);
+                setTimeout(hideElements, 2000);
+                
+                // Observer برای تغییرات DOM (برای SPA)
+                if (window.MutationObserver) {
+                    var observer = new MutationObserver(function(mutations) {
+                        hideElements();
+                    });
+                    observer.observe(document.body, {
+                        childList: true,
+                        subtree: true
+                    });
+                }
+            })();
+        """.trimIndent()
+        
+        try {
+            webView.evaluateJavascript(hideHeaderScript, null)
+            Log.d(fragmentTag, "Header hidden")
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error hiding header", e)
         }
     }
 
