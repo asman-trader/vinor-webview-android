@@ -4,50 +4,6 @@
     android:layout_height="match_parent"
     android:background="@color/vinor_bg_dark">
 
-    <!-- Update Banner (hidden by default) -->
-    <LinearLayout
-        android:id="@+id/updateBanner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingLeft="12dp"
-        android:paddingRight="8dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:background="#FFFDE7"
-        android:visibility="gone">
-
-        <ImageView
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:src="@drawable/ic_v_green"
-            android:tint="#F59E0B"
-            android:contentDescription="Update" />
-
-        <TextView
-            android:id="@+id/updateBannerText"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:paddingLeft="8dp"
-            android:text="بروزرسانی جدید اپلیکیشن موجود است"
-            android:textColor="#7C2D12"
-            android:textSize="12sp" />
-
-        <Button
-            android:id="@+id/updateBannerAction"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="بروزرسانی"
-            android:textSize="12sp"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#F59E0B"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp" />
-    </LinearLayout>
-
     <!-- WebView -->
     <WebView
         android:id="@+id/webView"

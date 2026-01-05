@@ -30,13 +30,6 @@ abstract class BaseWebViewFragment : Fragment() {
     
     // URL داینامیک - می‌تواند از منوی API تنظیم شود
     var dynamicUrl: String? = null
-
-    // Update banner (lazy refs)
-    private val updateBanner by lazy { binding.root.findViewById<android.widget.LinearLayout>(ir.vinor.app.R.id.updateBanner) }
-    private val updateBannerText by lazy { binding.root.findViewById<android.widget.TextView>(ir.vinor.app.R.id.updateBannerText) }
-    private val updateBannerAction by lazy { binding.root.findViewById<android.widget.Button>(ir.vinor.app.R.id.updateBannerAction) }
-    private var updateChecked = false
-    private var latestApkUrl: String? = null
     
     // Public getters for MainActivity access
     fun getCurrentUrl(): String? {
@@ -163,12 +156,6 @@ abstract class BaseWebViewFragment : Fragment() {
                 
                 // فعال کردن تم تاریک در صفحه وب
                 enableDarkMode()
-
-                // بررسی بروزرسانی (یکبار)
-                if (!updateChecked) {
-                    updateChecked = true
-                    checkForAppUpdate(url)
-                }
             }
 
             override fun onReceivedError(
@@ -487,130 +474,6 @@ abstract class BaseWebViewFragment : Fragment() {
         }
     }
 
-    /**
-     * بررسی نسخه اپلیکیشن با API و نمایش نوار بروزرسانی
-     */
-    private fun checkForAppUpdate(currentUrl: String?) {
-        try {
-            val base = try {
-                val u = java.net.URL(currentUrl ?: (dynamicUrl ?: targetUrl))
-                "${u.protocol}://${u.host}${if (u.port > 0 && u.port != 80 && u.port != 443) ":${u.port}" else ""}"
-            } catch (e: Exception) { "" }
-            val endpoint = if (base.isNotEmpty()) "$base/api/app/version" else "/api/app/version"
-
-            Thread {
-                var conn: java.net.HttpURLConnection? = null
-                try {
-                    val url = java.net.URL(endpoint)
-                    conn = (url.openConnection() as java.net.HttpURLConnection).apply {
-                        requestMethod = "GET"
-                        connectTimeout = 5000
-                        readTimeout = 5000
-                        setRequestProperty("Accept", "application/json")
-                    }
-                    val code = conn.responseCode
-                    if (code in 200..299) {
-                        val text = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-                        val latest = parseLatestVersion(text)
-                        val current = getCurrentAppVersionName()
-                        if (latest.version.isNotBlank() && isNewerVersion(latest.version, current)) {
-                            latestApkUrl = latest.url
-                            showUpdateBanner(latest)
-                        } else {
-                            hideUpdateBanner()
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w(fragmentTag, "Update check failed: ${e.message}")
-                } finally {
-                    try { conn?.disconnect() } catch (_: Exception) {}
-                }
-            }.start()
-        } catch (e: Exception) {
-            Log.w(fragmentTag, "checkForAppUpdate error: ${e.message}")
-        }
-    }
-
-    private data class LatestInfo(
-        val version: String,
-        val url: String,
-        val updatedAt: String
-    )
-
-    private fun parseLatestVersion(json: String): LatestInfo {
-        fun findValue(key: String): String {
-            val pattern = Regex("\"$key\"\\s*:\\s*\"([^\"]*)\"")
-            val m = pattern.find(json)
-            return m?.groups?.get(1)?.value ?: ""
-        }
-        val v = findValue("android_apk_version")
-        val u = findValue("android_apk_url")
-        val t = findValue("android_apk_updated_at")
-        return LatestInfo(v, u, t)
-    }
-
-    private fun getCurrentAppVersionName(): String {
-        return try {
-            val ctx = requireContext().applicationContext
-            val pInfo = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
-            pInfo.versionName ?: "0.0.0"
-        } catch (_: Exception) { "0.0.0" }
-    }
-
-    private fun isNewerVersion(latest: String, current: String): Boolean {
-        return try {
-            val l = latest.split('.', '-', '_')
-            val c = current.split('.', '-', '_')
-            val max = kotlin.math.max(l.size, c.size)
-            for (i in 0 until max) {
-                val li = l.getOrNull(i)?.toIntOrNull() ?: 0
-                val ci = c.getOrNull(i)?.toIntOrNull() ?: 0
-                if (li > ci) return true
-                if (li < ci) return false
-            }
-            false
-        } catch (_: Exception) {
-            latest.trim() != current.trim() && latest.trim().length > current.trim().length
-        }
-    }
-
-    private fun showUpdateBanner(info: LatestInfo) {
-        if (!::webView.isInitialized) return
-        try {
-            requireActivity().runOnUiThread {
-                try {
-                    updateBanner?.visibility = View.VISIBLE
-                    updateBannerText?.text = "بروزرسانی جدید (${info.version}) موجود است"
-                    updateBannerAction?.setOnClickListener {
-                        val dl = latestApkUrl ?: info.url
-                        if (!dl.isNullOrBlank()) {
-                            try {
-                                val abs = if (dl.startsWith("http")) dl else {
-                                    val base = try {
-                                        val u = java.net.URL(webView.url ?: (dynamicUrl ?: targetUrl))
-                                        "${u.protocol}://${u.host}${if (u.port > 0 && u.port != 80 && u.port != 443) ":${u.port}" else ""}"
-                                    } catch (_: Exception) { "" }
-                                    if (base.isNotEmpty()) "$base$dl" else dl
-                                }
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(abs))
-                                startActivity(intent)
-                            } catch (e: Exception) {
-                                Log.e(fragmentTag, "Open update link failed: ${e.message}")
-                            }
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-        } catch (_: Exception) {}
-    }
-
-    private fun hideUpdateBanner() {
-        try {
-            requireActivity().runOnUiThread {
-                try { updateBanner?.visibility = View.GONE } catch (_: Exception) {}
-            }
-        } catch (_: Exception) {}
-    }
     /**
      * بررسی اینکه آیا WebView می‌تواند به عقب برگردد
      */
