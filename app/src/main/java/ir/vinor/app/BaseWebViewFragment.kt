@@ -94,6 +94,17 @@ abstract class BaseWebViewFragment : Fragment() {
                 request: WebResourceRequest?
             ): Boolean {
                 val url = request?.url?.toString() ?: return false
+
+                // اگر لینک دانلود APK است، با مرورگر/مدیر دانلود سیستم باز شود
+                try {
+                    if (url.lowercase().endsWith(".apk")) {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        startActivity(intent)
+                        return true
+                    }
+                } catch (e: Exception) {
+                    Log.e(fragmentTag, "Error opening APK link: $url", e)
+                }
                 
                 // DeepLink: لینک‌های vinor.ir داخل WebView باز شود
                 if (url.contains("vinor.ir")) {
