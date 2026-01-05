@@ -125,7 +125,31 @@ abstract class BaseWebViewFragment : Fragment() {
                 Log.d(fragmentTag, "Page finished: $url")
                 
                 // مخفی کردن منوی فوتر سایت در اپلیکیشن
-                hideFooterMenu()
+                // در صفحات جزئیات فایل (همکاران و عمومی) فوتر باید مخفی باشد
+                val urlStr = url ?: ""
+                val isDetailPage = urlStr.contains("/express/partner/land/") || 
+                                   (urlStr.contains("/express/") && 
+                                    !urlStr.contains("/express/partner/dashboard") &&
+                                    !urlStr.contains("/express/partner/explore") &&
+                                    !urlStr.contains("/express/partner/profile") &&
+                                    !urlStr.contains("/express/partner/commissions") &&
+                                    !urlStr.contains("/express/partner/routine") &&
+                                    !urlStr.contains("/express/partner/login") &&
+                                    !urlStr.contains("/express/partner/apply") &&
+                                    (urlStr.contains("/express/partner/land/") || 
+                                     urlStr.matches(Regex(".*/express/[^/]+$"))))
+                
+                if (isDetailPage) {
+                    // در صفحات جزئیات فایل، فوتر را حتماً مخفی کن
+                    hideFooterMenu()
+                    // اجرای مجدد بعد از کمی تاخیر برای اطمینان
+                    view?.postDelayed({ hideFooterMenu() }, 500)
+                    view?.postDelayed({ hideFooterMenu() }, 1000)
+                    view?.postDelayed({ hideFooterMenu() }, 2000)
+                } else {
+                    // در سایر صفحات هم فوتر را مخفی کن
+                    hideFooterMenu()
+                }
                 
                 // هدرهای وب نمایش داده می‌شوند (دقیقاً مانند سایت)
                 // هیچ تغییری در هدرها اعمال نمی‌شود
@@ -267,6 +291,7 @@ abstract class BaseWebViewFragment : Fragment() {
     /**
      * مخفی کردن منوی فوتر سایت با JavaScript
      * منوی فوتر با ID bottomNavMenu و کلاس fixed inset-x-0 bottom-0 است
+     * در صفحات جزئیات فایل (همکاران و عمومی) فوتر باید حتماً مخفی باشد
      */
     private fun hideFooterMenu() {
         if (!::webView.isInitialized) return
@@ -278,7 +303,12 @@ abstract class BaseWebViewFragment : Fragment() {
                 var selectors = [
                     '#bottomNavMenu',                    // منوی اصلی فوتر
                     'nav#bottomNavMenu',                // nav با ID bottomNavMenu
+                    'nav[id="bottomNavMenu"]',          // nav با ID bottomNavMenu (exact)
                     '.fixed.inset-x-0.bottom-0',        // کلاس‌های منوی فوتر
+                    'nav.fixed.inset-x-0.bottom-0',     // nav با کلاس‌های منوی فوتر
+                    '[id*="bottomNav"]',                // هر element با ID شامل bottomNav
+                    '[class*="bottom-nav"]',            // هر element با کلاس شامل bottom-nav
+                    '[class*="bottomNav"]',              // هر element با کلاس شامل bottomNav
                     'footer nav',
                     'footer .menu',
                     'footer .footer-menu',
@@ -290,25 +320,47 @@ abstract class BaseWebViewFragment : Fragment() {
                     'footer .bottom-navigation',
                     '[class*="footer"] [class*="menu"]',
                     '[class*="footer"] nav',
-                    'footer [class*="nav"]'
+                    'footer [class*="nav"]',
+                    // Selectorهای اضافی برای صفحات جزئیات فایل
+                    'nav[class*="fixed"][class*="bottom"]',
+                    '[data-tour="bottom-nav"]',          // منوی فوتر با data-tour
+                    'nav[data-tour="bottom-nav"]'       // nav با data-tour
                 ];
                 
                 function hideElements() {
+                    var hiddenCount = 0;
                     selectors.forEach(function(selector) {
                         try {
                             var elements = document.querySelectorAll(selector);
                             elements.forEach(function(el) {
                                 if (el) {
-                                    el.style.display = 'none';
-                                    el.style.visibility = 'hidden';
-                                    el.style.height = '0';
-                                    el.style.overflow = 'hidden';
-                                    el.style.margin = '0';
-                                    el.style.padding = '0';
+                                    // چک کردن که آیا element واقعاً منوی فوتر است
+                                    var isFooterNav = el.id === 'bottomNavMenu' || 
+                                                     el.classList.contains('bottom-nav') ||
+                                                     el.classList.contains('bottomNavMenu') ||
+                                                     (el.tagName === 'NAV' && el.classList.contains('fixed') && el.classList.contains('bottom-0')) ||
+                                                     el.getAttribute('data-tour') === 'bottom-nav';
+                                    
+                                    if (isFooterNav || selector.includes('bottomNav') || selector.includes('bottom-nav')) {
+                                        el.style.display = 'none';
+                                        el.style.visibility = 'hidden';
+                                        el.style.height = '0';
+                                        el.style.overflow = 'hidden';
+                                        el.style.margin = '0';
+                                        el.style.padding = '0';
+                                        el.style.opacity = '0';
+                                        el.style.pointerEvents = 'none';
+                                        hiddenCount++;
+                                    }
                                 }
                             });
-                        } catch(e) {}
+                        } catch(e) {
+                            console.error('Error hiding footer:', e);
+                        }
                     });
+                    if (hiddenCount > 0) {
+                        console.log('Hidden ' + hiddenCount + ' footer elements');
+                    }
                 }
                 
                 // اجرای فوری
@@ -324,6 +376,7 @@ abstract class BaseWebViewFragment : Fragment() {
                 
                 // اجرای مجدد بعد از تغییرات DOM (برای SPA)
                 setTimeout(hideElements, 100);
+                setTimeout(hideElements, 300);
                 setTimeout(hideElements, 500);
                 setTimeout(hideElements, 1000);
                 setTimeout(hideElements, 2000);
@@ -331,11 +384,31 @@ abstract class BaseWebViewFragment : Fragment() {
                 // Observer برای تغییرات DOM (برای SPA)
                 if (window.MutationObserver) {
                     var observer = new MutationObserver(function(mutations) {
-                        hideElements();
+                        var shouldHide = false;
+                        mutations.forEach(function(mutation) {
+                            if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                                for (var i = 0; i < mutation.addedNodes.length; i++) {
+                                    var node = mutation.addedNodes[i];
+                                    if (node.nodeType === 1) { // Element node
+                                        if (node.id === 'bottomNavMenu' || 
+                                            node.classList.contains('bottom-nav') ||
+                                            node.querySelector && (node.querySelector('#bottomNavMenu') || node.querySelector('.bottom-nav'))) {
+                                            shouldHide = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        if (shouldHide) {
+                            hideElements();
+                        }
                     });
                     observer.observe(document.body, {
                         childList: true,
-                        subtree: true
+                        subtree: true,
+                        attributes: true,
+                        attributeFilter: ['class', 'id', 'style']
                     });
                 }
             })();
