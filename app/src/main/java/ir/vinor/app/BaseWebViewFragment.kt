@@ -125,39 +125,31 @@ abstract class BaseWebViewFragment : Fragment() {
                 Log.d(fragmentTag, "Page finished: $url")
                 
                 // مخفی کردن منوی فوتر سایت در اپلیکیشن
-                // فقط در صفحات جزئیات فایل (همکاران و عمومی) منوی فوتر باید مخفی باشد
+                // در صفحات جزئیات فایل (همکاران و عمومی) فوتر باید مخفی باشد
                 val urlStr = url ?: ""
-                
-                // تشخیص صفحه جزئیات فایل همکاران: /express/partner/lands/[code]
-                val isPartnerDetailPage = urlStr.contains("/express/partner/lands/") || 
-                                         urlStr.contains("/express/partner/land/")
-                
-                // تشخیص صفحه جزئیات فایل عمومی: /express/[code] (بدون / بعد از express)
-                // باید مطمئن شویم که این URL جزئیات فایل است و نه صفحه دیگری
-                // URL باید به صورت /express/[کد فایل] باشد (مثلاً /express/ABC123 یا /express/ABC123?ref=...)
-                val urlWithoutQuery = urlStr.split("?")[0] // حذف query parameter
-                val isPublicDetailPage = urlWithoutQuery.matches(Regex(".*/express/[^/]+$")) &&
-                                       !urlStr.contains("/express/partner") &&
-                                       !urlStr.contains("/express/public") &&
-                                       !urlStr.contains("/express/list") &&
-                                       !urlStr.contains("/express/explore") &&
-                                       !urlStr.contains("/express/api") &&
-                                       !urlStr.contains("/express/login") &&
-                                       !urlStr.contains("/express/apply")
-                
-                val isDetailPage = isPartnerDetailPage || isPublicDetailPage
+                val isDetailPage = urlStr.contains("/express/partner/land/") || 
+                                   (urlStr.contains("/express/") && 
+                                    !urlStr.contains("/express/partner/dashboard") &&
+                                    !urlStr.contains("/express/partner/explore") &&
+                                    !urlStr.contains("/express/partner/profile") &&
+                                    !urlStr.contains("/express/partner/commissions") &&
+                                    !urlStr.contains("/express/partner/routine") &&
+                                    !urlStr.contains("/express/partner/login") &&
+                                    !urlStr.contains("/express/partner/apply") &&
+                                    (urlStr.contains("/express/partner/land/") || 
+                                     urlStr.matches(Regex(".*/express/[^/]+$"))))
                 
                 if (isDetailPage) {
-                    // فقط در صفحات جزئیات فایل، منوی فوتر را مخفی کن
-                    Log.d(fragmentTag, "Detail page detected, hiding footer menu: $urlStr")
+                    // در صفحات جزئیات فایل، فوتر را حتماً مخفی کن
                     hideFooterMenu()
                     // اجرای مجدد بعد از کمی تاخیر برای اطمینان
-                    view?.postDelayed({ hideFooterMenu() }, 300)
-                    view?.postDelayed({ hideFooterMenu() }, 600)
+                    view?.postDelayed({ hideFooterMenu() }, 500)
                     view?.postDelayed({ hideFooterMenu() }, 1000)
                     view?.postDelayed({ hideFooterMenu() }, 2000)
+                } else {
+                    // در سایر صفحات هم فوتر را مخفی کن
+                    hideFooterMenu()
                 }
-                // در سایر صفحات، منوی فوتر نمایش داده می‌شود (مخفی نمی‌کنیم)
                 
                 // هدرهای وب نمایش داده می‌شوند (دقیقاً مانند سایت)
                 // هیچ تغییری در هدرها اعمال نمی‌شود
