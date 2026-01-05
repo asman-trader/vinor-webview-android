@@ -127,8 +127,11 @@ abstract class BaseWebViewFragment : Fragment() {
                 // مخفی کردن منوی فوتر سایت در اپلیکیشن
                 hideFooterMenu()
                 
-                // مخفی کردن هدر سایت در اپلیکیشن (مانند فوتر)
-                hideHeader()
+                // مخفی کردن هدرهای وب در اپلیکیشن (هدر native استفاده می‌شود)
+                hideWebHeaders()
+                
+                // اضافه کردن padding-top به body برای جبران هدر native
+                addTopPaddingForNativeHeader()
                 
                 // فعال کردن تم تاریک در صفحه وب
                 enableDarkMode()
@@ -265,102 +268,97 @@ abstract class BaseWebViewFragment : Fragment() {
     }
 
     /**
-     * مخفی کردن هدر سایت با JavaScript (مانند فوتر)
-     * هدرها با کلاس fixed top-0 یا sticky top-0 هستند
+     * مخفی کردن هدرهای وب در اپلیکیشن (هدر native استفاده می‌شود)
      */
-    private fun hideHeader() {
+    private fun hideWebHeaders() {
         if (!::webView.isInitialized) return
         
-        // JavaScript برای مخفی کردن هدر
         val hideHeaderScript = """
             (function() {
-                // Selectorهای مختلف برای هدر
-                var selectors = [
-                    'header',                          // همه هدرها
-                    'header.fixed',                    // هدر fixed
-                    'header.sticky',                   // هدر sticky
-                    'header.fixed.top-0',              // هدر fixed top-0
-                    'header.sticky.top-0',            // هدر sticky top-0
-                    'header[class*="fixed"][class*="top-0"]',  // هدر fixed با کلاس‌های مختلف
-                    'header[class*="sticky"][class*="top-0"]', // هدر sticky با کلاس‌های مختلف
-                    'header[class*="fixed top-0"]',    // هدر fixed top-0
-                    'header[class*="sticky top-0"]',   // هدر sticky top-0
-                    'header[class*="fixed left-0 right-0"]', // هدر fixed تمام‌عرض
-                    'header[data-tour*="header"]',     // هدر با data-tour
-                    'header[data-tour*="dashboard-header"]' // هدر داشبورد
-                ];
-                
-                function hideElements() {
-                    selectors.forEach(function(selector) {
-                        try {
-                            var elements = document.querySelectorAll(selector);
-                            elements.forEach(function(el) {
-                                if (!el) return;
-                                
-                                // بررسی اینکه آیا element واقعاً هدر است (نه فوتر)
-                                var tagName = el.tagName ? el.tagName.toLowerCase() : '';
-                                var isHeaderTag = tagName === 'header';
-                                
-                                // بررسی اینکه element در بالای صفحه است (نه پایین)
-                                var rect = el.getBoundingClientRect();
-                                var isAtTop = rect.top <= 50; // اگر در 50px بالای صفحه باشد
-                                
-                                // بررسی کلاس‌های fixed یا sticky
-                                var hasFixedOrSticky = el.className && (
-                                    el.className.includes('fixed') || 
-                                    el.className.includes('sticky')
+                function hideHeaders() {
+                    try {
+                        // پیدا کردن همه هدرها
+                        var headers = document.querySelectorAll('header');
+                        headers.forEach(function(header) {
+                            if (header) {
+                                var rect = header.getBoundingClientRect();
+                                // فقط هدرهای fixed/sticky در بالای صفحه را مخفی کن
+                                var isFixed = header.className && (
+                                    header.className.includes('fixed') || 
+                                    header.className.includes('sticky')
                                 );
+                                var isAtTop = rect.top <= 100;
                                 
-                                // فقط هدرهای واقعی که در بالای صفحه هستند را مخفی کن
-                                if (isHeaderTag && isAtTop && hasFixedOrSticky) {
-                                    el.style.display = 'none';
-                                    el.style.visibility = 'hidden';
-                                    el.style.height = '0';
-                                    el.style.overflow = 'hidden';
-                                    el.style.margin = '0';
-                                    el.style.padding = '0';
-                                    el.style.opacity = '0';
+                                if (isFixed && isAtTop) {
+                                    header.style.display = 'none';
+                                    header.style.visibility = 'hidden';
+                                    header.style.height = '0';
+                                    header.style.margin = '0';
+                                    header.style.padding = '0';
                                 }
-                            });
-                        } catch(e) {}
-                    });
+                            }
+                        });
+                    } catch(e) {}
                 }
                 
-                // اجرای فوری
-                hideElements();
-                
-                // اجرای مجدد بعد از لود کامل DOM
+                hideHeaders();
                 if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', hideElements);
+                    document.addEventListener('DOMContentLoaded', hideHeaders);
                 }
+                window.addEventListener('load', hideHeaders);
+                setTimeout(hideHeaders, 100);
+                setTimeout(hideHeaders, 500);
+                setTimeout(hideHeaders, 1000);
                 
-                // اجرای مجدد بعد از لود کامل صفحه
-                window.addEventListener('load', hideElements);
-                
-                // اجرای مجدد بعد از تغییرات DOM (برای SPA)
-                setTimeout(hideElements, 100);
-                setTimeout(hideElements, 500);
-                setTimeout(hideElements, 1000);
-                setTimeout(hideElements, 2000);
-                
-                // Observer برای تغییرات DOM (برای SPA)
                 if (window.MutationObserver) {
-                    var observer = new MutationObserver(function(mutations) {
-                        hideElements();
-                    });
-                    observer.observe(document.body, {
-                        childList: true,
-                        subtree: true
-                    });
+                    var observer = new MutationObserver(hideHeaders);
+                    observer.observe(document.body, { childList: true, subtree: true });
                 }
             })();
         """.trimIndent()
         
         try {
             webView.evaluateJavascript(hideHeaderScript, null)
-            Log.d(fragmentTag, "Header hidden")
+            Log.d(fragmentTag, "Web headers hidden")
         } catch (e: Exception) {
-            Log.e(fragmentTag, "Error hiding header", e)
+            Log.e(fragmentTag, "Error hiding web headers", e)
+        }
+    }
+    
+    /**
+     * اضافه کردن padding-top به body برای جبران هدر native (56dp = 14 * 4dp)
+     */
+    private fun addTopPaddingForNativeHeader() {
+        if (!::webView.isInitialized) return
+        
+        val paddingScript = """
+            (function() {
+                function addPadding() {
+                    try {
+                        var body = document.body;
+                        if (body) {
+                            // تبدیل 56dp به px (تقریباً 56px در density 1)
+                            var paddingTop = '56px';
+                            body.style.paddingTop = paddingTop;
+                            body.style.boxSizing = 'border-box';
+                        }
+                    } catch(e) {}
+                }
+                
+                addPadding();
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', addPadding);
+                } else {
+                    setTimeout(addPadding, 100);
+                }
+            })();
+        """.trimIndent()
+        
+        try {
+            webView.evaluateJavascript(paddingScript, null)
+            Log.d(fragmentTag, "Top padding added for native header")
+        } catch (e: Exception) {
+            Log.e(fragmentTag, "Error adding top padding", e)
         }
     }
 
