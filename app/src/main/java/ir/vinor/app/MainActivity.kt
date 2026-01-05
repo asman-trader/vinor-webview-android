@@ -50,37 +50,8 @@ class MainActivity : AppCompatActivity() {
         navController.addOnDestinationChangedListener { _, destination, _ ->
             Log.d("MainActivity", "Tab changed to: ${destination.label}")
             updateFragmentUrlFromMenu(destination.id)
-            updateHeaderTitle(destination.id)
             logCurrentTab()
         }
-        
-        // تنظیم هدر اولیه
-        setupHeader()
-    }
-    
-    /**
-     * تنظیم هدر native
-     */
-    private fun setupHeader() {
-        binding.appHeader.title = "وینور"
-        setSupportActionBar(binding.appHeader)
-        supportActionBar?.setDisplayHomeAsUpEnabled(false)
-    }
-    
-    /**
-     * به‌روزرسانی عنوان هدر بر اساس صفحه فعلی
-     */
-    private fun updateHeaderTitle(fragmentId: Int) {
-        val menuItem = currentMenuItems.find { it.fragmentId == fragmentId }
-        val title = when (fragmentId) {
-            R.id.dashboardFragment -> "خانه"
-            R.id.commissionsFragment -> "پورسانت‌ها"
-            R.id.expressFragment -> "اکسپلور"
-            R.id.routineFragment -> "روتین"
-            R.id.profileFragment -> "پروفایل"
-            else -> menuItem?.label ?: "وینور"
-        }
-        binding.appHeader.title = title
     }
 
     /**

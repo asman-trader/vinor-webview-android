@@ -127,11 +127,8 @@ abstract class BaseWebViewFragment : Fragment() {
                 // مخفی کردن منوی فوتر سایت در اپلیکیشن
                 hideFooterMenu()
                 
-                // مخفی کردن هدرهای وب در اپلیکیشن (هدر native استفاده می‌شود)
-                hideWebHeaders()
-                
-                // اضافه کردن padding-top به body برای جبران هدر native
-                addTopPaddingForNativeHeader()
+                // هدرهای وب نمایش داده می‌شوند (دقیقاً مانند سایت)
+                // هیچ تغییری در هدرها اعمال نمی‌شود
                 
                 // فعال کردن تم تاریک در صفحه وب
                 enableDarkMode()
@@ -264,101 +261,6 @@ abstract class BaseWebViewFragment : Fragment() {
     protected fun reloadWebView() {
         if (::webView.isInitialized) {
             webView.reload()
-        }
-    }
-
-    /**
-     * مخفی کردن هدرهای وب در اپلیکیشن (هدر native استفاده می‌شود)
-     */
-    private fun hideWebHeaders() {
-        if (!::webView.isInitialized) return
-        
-        val hideHeaderScript = """
-            (function() {
-                function hideHeaders() {
-                    try {
-                        // پیدا کردن همه هدرها
-                        var headers = document.querySelectorAll('header');
-                        headers.forEach(function(header) {
-                            if (header) {
-                                var rect = header.getBoundingClientRect();
-                                // فقط هدرهای fixed/sticky در بالای صفحه را مخفی کن
-                                var isFixed = header.className && (
-                                    header.className.includes('fixed') || 
-                                    header.className.includes('sticky')
-                                );
-                                var isAtTop = rect.top <= 100;
-                                
-                                if (isFixed && isAtTop) {
-                                    header.style.display = 'none';
-                                    header.style.visibility = 'hidden';
-                                    header.style.height = '0';
-                                    header.style.margin = '0';
-                                    header.style.padding = '0';
-                                }
-                            }
-                        });
-                    } catch(e) {}
-                }
-                
-                hideHeaders();
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', hideHeaders);
-                }
-                window.addEventListener('load', hideHeaders);
-                setTimeout(hideHeaders, 100);
-                setTimeout(hideHeaders, 500);
-                setTimeout(hideHeaders, 1000);
-                
-                if (window.MutationObserver) {
-                    var observer = new MutationObserver(hideHeaders);
-                    observer.observe(document.body, { childList: true, subtree: true });
-                }
-            })();
-        """.trimIndent()
-        
-        try {
-            webView.evaluateJavascript(hideHeaderScript, null)
-            Log.d(fragmentTag, "Web headers hidden")
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error hiding web headers", e)
-        }
-    }
-    
-    /**
-     * اضافه کردن padding-top به body برای جبران هدر native (56dp = 14 * 4dp)
-     */
-    private fun addTopPaddingForNativeHeader() {
-        if (!::webView.isInitialized) return
-        
-        val paddingScript = """
-            (function() {
-                function addPadding() {
-                    try {
-                        var body = document.body;
-                        if (body) {
-                            // تبدیل 56dp به px (تقریباً 56px در density 1)
-                            var paddingTop = '56px';
-                            body.style.paddingTop = paddingTop;
-                            body.style.boxSizing = 'border-box';
-                        }
-                    } catch(e) {}
-                }
-                
-                addPadding();
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', addPadding);
-                } else {
-                    setTimeout(addPadding, 100);
-                }
-            })();
-        """.trimIndent()
-        
-        try {
-            webView.evaluateJavascript(paddingScript, null)
-            Log.d(fragmentTag, "Top padding added for native header")
-        } catch (e: Exception) {
-            Log.e(fragmentTag, "Error adding top padding", e)
         }
     }
 

@@ -6,19 +6,6 @@
     android:layout_height="match_parent"
     android:background="@color/vinor_bg_dark">
 
-    <!-- Header - Native Android (مانند فوتر) -->
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/appHeader"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:background="@color/vinor_bg_dark"
-        android:elevation="4dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:titleTextColor="@color/vinor_text_dark"
-        app:title="وینور" />
-
     <!-- Fragment Container -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/navHostFragment"
@@ -29,7 +16,7 @@
         app:layout_constraintBottom_toTopOf="@id/bottomNavigation"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appHeader"
+        app:layout_constraintTop_toTopOf="parent"
         app:navGraph="@navigation/nav_graph" />
 
     <!-- Bottom Navigation - منو داینامیک از API بارگذاری می‌شود -->
