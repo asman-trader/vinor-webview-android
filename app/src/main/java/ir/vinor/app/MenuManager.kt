@@ -38,6 +38,8 @@ object MenuManager {
         "express" to R.id.expressFragment,          // اکسپلور
         // برای سازگاری عقب‌رو: اگر API قدیمی 'routine' بدهد، به «ملک من» هدایت شود
         "routine" to R.id.myPropertiesFragment,     // روتین (قدیمی) -> ملک من
+        // همسان با API سایت
+        "my_props" to R.id.myPropertiesFragment,    // کلید فعلی API: my_props
         // کلید جدید برای منوی «ملک من»
         "my_properties" to R.id.myPropertiesFragment, // ملک من (جدید)
         "profile" to R.id.profileFragment           // من
