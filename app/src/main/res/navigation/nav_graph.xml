@@ -24,10 +24,11 @@
         android:label="اکسپلور"
         tools:layout="@layout/fragment_webview" />
 
+    <!-- تب جدید: ملک من -->
     <fragment
-        android:id="@+id/routineFragment"
-        android:name="ir.vinor.app.RoutineFragment"
-        android:label="روتین"
+        android:id="@+id/myPropertiesFragment"
+        android:name="ir.vinor.app.MyPropertiesFragment"
+        android:label="ملک من"
         tools:layout="@layout/fragment_webview" />
 
     <fragment

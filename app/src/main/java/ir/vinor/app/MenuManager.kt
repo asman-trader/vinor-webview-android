@@ -30,13 +30,16 @@ object MenuManager {
     
     /**
      * Mapping بین key منوی سایت و Fragment ID
-     * فقط 5 تب همکار اکسپرس: خانه، پورسانت، اکسپلور، روتین، من
+     * فقط 5 تب همکار اکسپرس: خانه، پورسانت، اکسپلور، ملک من، من
      */
     private val keyToFragmentId = mapOf(
         "dashboard" to R.id.dashboardFragment,      // خانه
         "commissions" to R.id.commissionsFragment,  // پورسانت
         "express" to R.id.expressFragment,          // اکسپلور
-        "routine" to R.id.routineFragment,          // روتین
+        // برای سازگاری عقب‌رو: اگر API قدیمی 'routine' بدهد، همچنان کار کند
+        "routine" to R.id.routineFragment,          // روتین (قدیمی)
+        // کلید جدید برای منوی «ملک من»
+        "my_properties" to R.id.myPropertiesFragment, // ملک من (جدید)
         "profile" to R.id.profileFragment           // من
     )
     
@@ -127,6 +130,9 @@ object MenuManager {
             "fa-user" -> R.drawable.ic_profile
             "fa-chart-line" -> R.drawable.ic_commissions
             "fa-list-check" -> R.drawable.ic_routine
+            // آیکن‌های جایگزین متداول
+            "fa-building" -> R.drawable.ic_home
+            "fa-house" -> R.drawable.ic_home
             else -> R.drawable.ic_home // fallback
         }
     }
@@ -139,7 +145,8 @@ object MenuManager {
             MenuItem("dashboard", "https://vinor.ir/express/partner/dashboard", "fa-home", "خانه", R.id.dashboardFragment),
             MenuItem("commissions", "https://vinor.ir/express/partner/commissions", "fa-chart-line", "پورسانت", R.id.commissionsFragment),
             MenuItem("express", "https://vinor.ir/express/partner/explore", "fa-magnifying-glass", "اکسپلور", R.id.expressFragment),
-            MenuItem("routine", "https://vinor.ir/express/partner/routine", "fa-list-check", "روتین", R.id.routineFragment),
+            // جایگزینی «روتین» با «ملک من» در منوی پیش‌فرض
+            MenuItem("my_properties", "https://vinor.ir/express/partner/my-properties", "fa-list-check", "ملک من", R.id.myPropertiesFragment),
             MenuItem("profile", "https://vinor.ir/express/partner/profile", "fa-user", "من", R.id.profileFragment)
         )
     }
