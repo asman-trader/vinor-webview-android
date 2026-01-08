@@ -36,8 +36,8 @@ object MenuManager {
         "dashboard" to R.id.dashboardFragment,      // خانه
         "commissions" to R.id.commissionsFragment,  // پورسانت
         "express" to R.id.expressFragment,          // اکسپلور
-        // برای سازگاری عقب‌رو: اگر API قدیمی 'routine' بدهد، همچنان کار کند
-        "routine" to R.id.routineFragment,          // روتین (قدیمی)
+        // برای سازگاری عقب‌رو: اگر API قدیمی 'routine' بدهد، به «ملک من» هدایت شود
+        "routine" to R.id.myPropertiesFragment,     // روتین (قدیمی) -> ملک من
         // کلید جدید برای منوی «ملک من»
         "my_properties" to R.id.myPropertiesFragment, // ملک من (جدید)
         "profile" to R.id.profileFragment           // من
