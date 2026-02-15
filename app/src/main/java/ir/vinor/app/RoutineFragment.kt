@@ -172,6 +172,7 @@ class RoutineFragment : Fragment() {
     }
 
     private fun saveSteps() {
+        if (_binding == null) return
         val detail = mutableListOf<String>()
         if (binding.step1.isChecked) detail.add("1")
         if (binding.step2.isChecked) detail.add("2")
@@ -199,14 +200,14 @@ class RoutineFragment : Fragment() {
                         }
                     } else {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(requireContext(), "خطا در ذخیره", Toast.LENGTH_SHORT).show()
+                            context?.let { Toast.makeText(it, "خطا در ذخیره", Toast.LENGTH_SHORT).show() }
                         }
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "saveSteps error", e)
                 withContext(Dispatchers.Main) {
-                    if (_binding != null) Toast.makeText(requireContext(), "خطا در ارتباط", Toast.LENGTH_SHORT).show()
+                    if (_binding != null) context?.let { Toast.makeText(it, "خطا در ارتباط", Toast.LENGTH_SHORT).show() }
                 }
             }
         }
@@ -281,6 +282,7 @@ class RoutineFragment : Fragment() {
     }
 
     private fun updateMonthLabel() {
+        if (_binding == null) return
         val monthName = try {
             java.text.SimpleDateFormat("MMMM yyyy", Locale("fa")).format(currentMonth.time)
         } catch (_: Exception) {
@@ -291,6 +293,7 @@ class RoutineFragment : Fragment() {
 
     private fun fillCalendar() {
         if (_binding == null) return
+        val ctx = context ?: return
         val grid = binding.routineCalendar
         grid.removeAllViews()
         val cal = currentMonth.clone() as Calendar
@@ -319,7 +322,7 @@ class RoutineFragment : Fragment() {
 
         var index = 0
         for (i in 0 until numEmpty) {
-            val place = FrameLayout(requireContext())
+            val place = FrameLayout(ctx)
             val lp = GridLayout.LayoutParams(GridLayout.spec(index / 7), GridLayout.spec(index % 7))
             lp.width = cellSize
             lp.height = cellH
@@ -333,7 +336,7 @@ class RoutineFragment : Fragment() {
             val stepCount = (monthSteps[dateStr] ?: 0).coerceIn(0, 3)
             val isToday = dateStr == todayStr
 
-            val cell = FrameLayout(requireContext())
+            val cell = FrameLayout(ctx)
             cell.setBackgroundResource(if (isToday) R.drawable.bg_calendar_today else cellBgRes[stepCount])
             val lp = GridLayout.LayoutParams(GridLayout.spec(index / 7), GridLayout.spec(index % 7))
             lp.width = cellSize
@@ -341,11 +344,11 @@ class RoutineFragment : Fragment() {
             lp.setMargins(2, 2, 2, 2)
             cell.layoutParams = lp
 
-            val inner = LinearLayout(requireContext()).apply {
+            val inner = LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
             }
-            val dayTv = TextView(requireContext()).apply {
+            val dayTv = TextView(ctx).apply {
                 text = toPersianDigits(day)
                 setTextColor(cellTextColors[stepCount])
                 textSize = 12f
@@ -353,7 +356,7 @@ class RoutineFragment : Fragment() {
             }
             inner.addView(dayTv)
             if (stepCount > 0) {
-                val dotsTv = TextView(requireContext()).apply {
+                val dotsTv = TextView(ctx).apply {
                     text = "• ".repeat(stepCount).trimEnd()
                     setTextColor(cellTextColors[stepCount])
                     textSize = 10f
@@ -382,7 +385,12 @@ class RoutineFragment : Fragment() {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$BASE/express/partner/training")))
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "خطا در باز کردن لینک", Toast.LENGTH_SHORT).show()
+            context?.let { Toast.makeText(it, "خطا در باز کردن لینک", Toast.LENGTH_SHORT).show() }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        todayStr = todayDateString()
     }
 }

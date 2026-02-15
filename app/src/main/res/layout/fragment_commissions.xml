@@ -15,11 +15,19 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="8dp"
             android:text="پورسانت‌های من"
             android:textColor="#F9FAFB"
             android:textSize="18sp"
             android:textStyle="bold" />
+
+        <ProgressBar
+            android:id="@+id/commissionsProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
 
         <!-- آمار: 2x2 -->
         <LinearLayout
@@ -182,6 +190,7 @@
                 android:orientation="vertical"
                 android:gravity="center">
                 <TextView
+                    android:id="@+id/commissionsEmptyText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="هنوز پورسانتی ثبت نشده است."
@@ -189,13 +198,5 @@
                     android:textSize="14sp" />
             </LinearLayout>
         </FrameLayout>
-
-        <ProgressBar
-            android:id="@+id/commissionsProgress"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="24dp"
-            android:visibility="gone" />
     </LinearLayout>
 </ScrollView>

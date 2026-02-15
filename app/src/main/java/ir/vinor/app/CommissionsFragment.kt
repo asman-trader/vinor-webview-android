@@ -79,14 +79,20 @@ class CommissionsFragment : Fragment() {
 
     private fun formatDate(iso: String?): String {
         if (iso.isNullOrBlank()) return "—"
-        return try {
-            val inFmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
-            val outFmt = SimpleDateFormat("yyyy/MM/dd", Locale("fa"))
-            val d = inFmt.parse(iso.replace("Z", "").take(19))
-            if (d != null) outFmt.format(d) else iso.take(10)
-        } catch (_: Exception) {
-            iso.take(10).replace("-", "/")
+        val raw = iso.trim().replace("Z", "")
+        val outFmt = SimpleDateFormat("yyyy/MM/dd", Locale("fa"))
+        val parsers = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US),
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US),
+            SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        )
+        for (parser in parsers) {
+            try {
+                val d = parser.parse(raw.take(19).trim())
+                if (d != null) return outFmt.format(d)
+            } catch (_: Exception) { }
         }
+        return raw.take(10).replace("-", "/")
     }
 
     private fun statusText(status: String): String = when (status) {
@@ -149,7 +155,8 @@ class CommissionsFragment : Fragment() {
     private fun showError() {
         if (_binding == null) return
         binding.commissionsProgress.visibility = View.GONE
-        Toast.makeText(requireContext(), "خطا در بارگذاری پورسانت‌ها", Toast.LENGTH_SHORT).show()
+        context?.let { Toast.makeText(it, "خطا در بارگذاری پورسانت‌ها", Toast.LENGTH_SHORT).show() }
+        binding.commissionsEmptyText.text = "خطا در بارگذاری پورسانت‌ها."
         binding.commissionsEmpty.visibility = View.VISIBLE
         binding.commissionsList.visibility = View.GONE
     }
@@ -161,6 +168,7 @@ class CommissionsFragment : Fragment() {
         soldCount: Int,
         items: List<JSONObject>
     ) {
+        if (_binding == null) return
         binding.commissionsProgress.visibility = View.GONE
         binding.commissionsTotal.text = formatToman(total) + " تومان"
         binding.commissionsPending.text = formatToman(pending) + " تومان"
@@ -172,6 +180,7 @@ class CommissionsFragment : Fragment() {
 
         if (items.isEmpty()) {
             list.visibility = View.GONE
+            binding.commissionsEmptyText.text = "هنوز پورسانتی ثبت نشده است."
             binding.commissionsEmpty.visibility = View.VISIBLE
             return
         }
@@ -183,13 +192,14 @@ class CommissionsFragment : Fragment() {
             val itemBinding = ItemCommissionBinding.inflate(layoutInflater, list, false)
             itemBinding.itemCommissionLandCode.text = "کد فایل: ${c.optString("land_code", "—")}"
             itemBinding.itemCommissionDate.text = formatDate(c.optString("created_at"))
-            val status = (c.optString("status", "pending")).strip()
+            val status = (c.optString("status", "pending")).trim()
             itemBinding.itemCommissionStatus.text = statusText(status)
             itemBinding.itemCommissionStatus.setTextColor(statusColor(status))
             val pct = c.optDouble("commission_pct", 0.0)
             itemBinding.itemCommissionPct.text = if (pct == pct.toLong().toDouble()) "${pct.toLong()}%" else "$pct%"
-            itemBinding.itemCommissionAmount.text = formatToman(c.optInt("commission_amount", 0)) + " تومان"
-            val saleAmount = c.optInt("sale_amount", 0)
+            val amount = (c.optInt("commission_amount", 0)).coerceAtLeast(0)
+            itemBinding.itemCommissionAmount.text = formatToman(amount) + " تومان"
+            val saleAmount = (c.optInt("sale_amount", 0)).coerceAtLeast(0)
             if (saleAmount > 0) {
                 itemBinding.itemCommissionSaleRow.visibility = View.VISIBLE
                 itemBinding.itemCommissionSaleAmount.text = formatToman(saleAmount) + " تومان"
