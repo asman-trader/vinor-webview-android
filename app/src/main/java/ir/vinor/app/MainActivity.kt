@@ -13,7 +13,7 @@ import ir.vinor.app.databinding.ActivityMainBinding
 
 /**
  * MainActivity با Bottom Navigation - 5 تب همکار اکسپرس:
- * خانه، پورسانت، اکسپلور، روتین، من
+ * وینور، پورسانت، روتین، من (هماهنگ با منوی سایت)
  */
 class MainActivity : AppCompatActivity() {
 

@@ -9,25 +9,21 @@
 4. **درباره** (`about`) - `/` - آیکون: `fa-info-circle`
 5. **ورود** (`login`) - `/express/partner/login` - آیکون: `fa-user`
 
-### منوی همکار اکسپرس (کاربران لاگین شده):
-1. **خانه** (`dashboard`) - `/express/partner/dashboard` - آیکون: `fa-home`
+### منوی همکار اکسپرس (کاربران لاگین شده) - 4 تب:
+1. **وینور** (`dashboard`) - `/express/partner/dashboard` - آیکون: `fa-home`
 2. **پورسانت** (`commissions`) - `/express/partner/commissions` - آیکون: `fa-chart-line`
-3. **اکسپلور** (`express`) - `/express/partner/explore` - آیکون: `fa-magnifying-glass`
-4. **روتین** (`routine`) - `/express/partner/routine` - آیکون: `fa-list-check`
-5. **من** (`profile`) - `/express/partner/profile` - آیکون: `fa-user`
+3. **روتین** (`routine`) - `/express/partner/routine` - آیکون: `fa-list-check`
+4. **من** (`profile`) - `/express/partner/profile` - آیکون: `fa-user`
 
 ## ساختار اپلیکیشن
 
-### Fragmentها:
-- `HomeFragment` - خانه (عمومی)
-- `DashboardFragment` - خانه (همکار)
-- `ExploreFragment` - اکسپلور
-- `HelpFragment` - راهنما
-- `AboutFragment` - درباره
-- `LoginFragment` - ورود
+### Fragmentها (منوی همکار):
+- `DashboardFragment` - وینور (صفحه اصلی)
 - `CommissionsFragment` - پورسانت
 - `RoutineFragment` - روتین
-- `ProfileFragment` - پروفایل
+- `ProfileFragment` - من
+- `ExploreFragment` - اکسپلور (سازگاری عقب‌رو، در منو نمایش داده نمی‌شود)
+- `MyPropertiesFragment` - ملک من (سازگاری عقب‌رو، در منو نمایش داده نمی‌شود)
 
 ### MenuManager:
 - دریافت منو از API سایت (`/api/menu`)

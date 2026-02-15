@@ -30,19 +30,17 @@ object MenuManager {
     
     /**
      * Mapping بین key منوی سایت و Fragment ID
-     * فقط 5 تب همکار اکسپرس: خانه، پورسانت، اکسپلور، ملک من، من
+     * منوی همکار اکسپرس (4 تب): وینور، پورسانت، روتین، من - هماهنگ با API سایت
      */
     private val keyToFragmentId = mapOf(
-        "dashboard" to R.id.dashboardFragment,      // خانه
+        "dashboard" to R.id.dashboardFragment,       // وینور
         "commissions" to R.id.commissionsFragment,  // پورسانت
-        "express" to R.id.expressFragment,          // اکسپلور
-        // برای سازگاری عقب‌رو: اگر API قدیمی 'routine' بدهد، به «ملک من» هدایت شود
-        "routine" to R.id.myPropertiesFragment,     // روتین (قدیمی) -> ملک من
-        // همسان با API سایت
-        "my_props" to R.id.myPropertiesFragment,    // کلید فعلی API: my_props
-        // کلید جدید برای منوی «ملک من»
-        "my_properties" to R.id.myPropertiesFragment, // ملک من (جدید)
-        "profile" to R.id.profileFragment           // من
+        "routine" to R.id.routineFragment,          // روتین
+        "profile" to R.id.profileFragment,           // من
+        // سازگاری عقب‌رو (در منوی فعلی سایت نیستند)
+        "express" to R.id.expressFragment,
+        "my_props" to R.id.myPropertiesFragment,
+        "my_properties" to R.id.myPropertiesFragment
     )
     
     
@@ -140,15 +138,13 @@ object MenuManager {
     }
     
     /**
-     * منوی پیش‌فرض - 5 تب همکار اکسپرس
+     * منوی پیش‌فرض - 4 تب همکار اکسپرس (هماهنگ با سایت)
      */
     fun getDefaultMenu(): List<MenuItem> {
         return listOf(
-            MenuItem("dashboard", "https://vinor.ir/express/partner/dashboard", "fa-home", "خانه", R.id.dashboardFragment),
+            MenuItem("dashboard", "https://vinor.ir/express/partner/dashboard", "fa-home", "وینور", R.id.dashboardFragment),
             MenuItem("commissions", "https://vinor.ir/express/partner/commissions", "fa-chart-line", "پورسانت", R.id.commissionsFragment),
-            MenuItem("express", "https://vinor.ir/express/partner/explore", "fa-magnifying-glass", "اکسپلور", R.id.expressFragment),
-            // جایگزینی «روتین» با «ملک من» در منوی پیش‌فرض
-            MenuItem("my_properties", "https://vinor.ir/express/partner/my-properties", "fa-list-check", "ملک من", R.id.myPropertiesFragment),
+            MenuItem("routine", "https://vinor.ir/express/partner/routine", "fa-list-check", "روتین", R.id.routineFragment),
             MenuItem("profile", "https://vinor.ir/express/partner/profile", "fa-user", "من", R.id.profileFragment)
         )
     }

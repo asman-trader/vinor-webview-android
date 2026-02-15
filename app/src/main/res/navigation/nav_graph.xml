@@ -5,11 +5,11 @@
     android:id="@+id/nav_graph"
     app:startDestination="@id/dashboardFragment">
 
-    <!-- منوی همکار اکسپرس - 5 تب -->
+    <!-- منوی همکار اکسپرس - 4 تب: وینور، پورسانت، روتین، من (هماهنگ با سایت) -->
     <fragment
         android:id="@+id/dashboardFragment"
         android:name="ir.vinor.app.DashboardFragment"
-        android:label="خانه"
+        android:label="وینور"
         tools:layout="@layout/fragment_webview" />
 
     <fragment
@@ -19,22 +19,28 @@
         tools:layout="@layout/fragment_webview" />
 
     <fragment
-        android:id="@+id/expressFragment"
-        android:name="ir.vinor.app.ExploreFragment"
-        android:label="اکسپلور"
-        tools:layout="@layout/fragment_webview" />
-
-    <!-- تب جدید: ملک من -->
-    <fragment
-        android:id="@+id/myPropertiesFragment"
-        android:name="ir.vinor.app.MyPropertiesFragment"
-        android:label="ملک من"
+        android:id="@+id/routineFragment"
+        android:name="ir.vinor.app.RoutineFragment"
+        android:label="روتین"
         tools:layout="@layout/fragment_webview" />
 
     <fragment
         android:id="@+id/profileFragment"
         android:name="ir.vinor.app.ProfileFragment"
         android:label="من"
+        tools:layout="@layout/fragment_webview" />
+
+    <!-- نگه‌داری برای سازگاری با مسیرهای قدیمی (در منو نمایش داده نمی‌شوند) -->
+    <fragment
+        android:id="@+id/expressFragment"
+        android:name="ir.vinor.app.ExploreFragment"
+        android:label="اکسپلور"
+        tools:layout="@layout/fragment_webview" />
+
+    <fragment
+        android:id="@+id/myPropertiesFragment"
+        android:name="ir.vinor.app.MyPropertiesFragment"
+        android:label="ملک من"
         tools:layout="@layout/fragment_webview" />
 
 </navigation>
