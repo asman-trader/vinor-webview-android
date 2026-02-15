@@ -39,7 +39,8 @@ class RoutineFragment : Fragment() {
     private var _binding: FragmentRoutineBinding? = null
     private val binding get() = _binding!!
 
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
+    private val job = Job()
+    private val scope = CoroutineScope(Dispatchers.Main + job)
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
@@ -80,6 +81,7 @@ class RoutineFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        job.cancel()
         super.onDestroyView()
         _binding = null
     }
@@ -149,7 +151,7 @@ class RoutineFragment : Fragment() {
             } catch (e: Exception) {
                 Log.e(TAG, "saveSteps error", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(requireContext(), "خطا در ارتباط", Toast.LENGTH_SHORT).show()
+                    if (_binding != null) Toast.makeText(requireContext(), "خطا در ارتباط", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -172,6 +174,7 @@ class RoutineFragment : Fragment() {
                     if (arr != null) for (i in 0 until arr.length()) add(arr.optString(i, ""))
                 }
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
                     binding.step1.isChecked = stepsDetail.contains("1")
                     binding.step2.isChecked = stepsDetail.contains("2")
                     binding.step3.isChecked = stepsDetail.contains("3")
@@ -202,12 +205,14 @@ class RoutineFragment : Fragment() {
                     if (daysArr != null) for (i in 0 until daysArr.length()) add(daysArr.optString(i, ""))
                 }
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
                     updateMonthLabel()
                     fillCalendar()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "loadMonthData error", e)
                 withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
                     completedDays = emptyList()
                     updateMonthLabel()
                     fillCalendar()
@@ -217,13 +222,18 @@ class RoutineFragment : Fragment() {
     }
 
     private fun updateMonthLabel() {
-        val monthName = java.text.SimpleDateFormat("MMMM yyyy", Locale("fa")).format(currentMonth.time)
+        val monthName = try {
+            java.text.SimpleDateFormat("MMMM yyyy", Locale("fa")).format(currentMonth.time)
+        } catch (_: Exception) {
+            String.format(Locale.US, "%04d-%02d", currentMonth.get(Calendar.YEAR), currentMonth.get(Calendar.MONTH) + 1)
+        }
         binding.routineMonthLabel.text = monthName
         val count = completedDays.size
         binding.routineStatus.text = if (count > 0) "$count روز انجام روتین در این ماه" else ""
     }
 
     private fun fillCalendar() {
+        if (_binding == null) return
         val grid = binding.routineCalendar
         grid.removeAllViews()
         val cal = currentMonth.clone() as Calendar

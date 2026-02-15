@@ -14,15 +14,11 @@
         android:layoutDirection="rtl">
 
         <!-- پیشرفت امروز -->
-        <com.google.android.material.card.MaterialCardView
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            app:cardBackgroundColor="#1F2937"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="2dp"
-            app:strokeColor="#374151"
-            app:strokeWidth="1dp">
+            android:background="@drawable/bg_routine_card">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -102,18 +98,14 @@
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </FrameLayout>
 
         <!-- تقویم -->
-        <com.google.android.material.card.MaterialCardView
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            app:cardBackgroundColor="#1F2937"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="2dp"
-            app:strokeColor="#374151"
-            app:strokeWidth="1dp">
+            android:background="@drawable/bg_routine_card">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -200,18 +192,14 @@
                     android:textColor="#9CA3AF"
                     android:textSize="12sp" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </FrameLayout>
 
         <!-- آموزش ۳ مرحله‌ای -->
-        <com.google.android.material.card.MaterialCardView
+        <FrameLayout
             android:id="@+id/cardTraining"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="#1F2937"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="2dp"
-            app:strokeColor="#374151"
-            app:strokeWidth="1dp">
+            android:background="@drawable/bg_routine_card">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -257,6 +245,6 @@
                     app:tint="#9CA3AF"
                     android:contentDescription="" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </FrameLayout>
     </LinearLayout>
 </ScrollView>
