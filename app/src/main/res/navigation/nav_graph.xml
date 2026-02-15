@@ -16,7 +16,7 @@
         android:id="@+id/commissionsFragment"
         android:name="ir.vinor.app.CommissionsFragment"
         android:label="پورسانت"
-        tools:layout="@layout/fragment_webview" />
+        tools:layout="@layout/fragment_commissions" />
 
     <fragment
         android:id="@+id/routineFragment"

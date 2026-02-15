@@ -1,11 +1,202 @@
 package ir.vinor.app
 
-/**
- * تب پورسانت - برای همکاران اکسپرس
- * URL: /express/partner/commissions
- */
-class CommissionsFragment : BaseWebViewFragment() {
-    override val targetUrl: String = "https://vinor.ir/express/partner/commissions"
-    override val fragmentTag: String = "CommissionsFragment"
-}
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import ir.vinor.app.databinding.FragmentCommissionsBinding
+import ir.vinor.app.databinding.ItemCommissionBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import android.webkit.CookieManager
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
+/**
+ * تب پورسانت - کاملاً نیتیو (بدون WebView).
+ * داده را از API /express/partner/commissions/data با کوکی دریافت می‌کند.
+ */
+class CommissionsFragment : Fragment() {
+
+    private var _binding: FragmentCommissionsBinding? = null
+    private val binding get() = _binding!!
+
+    private val job = Job()
+    private val scope = CoroutineScope(Dispatchers.Main + job)
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    companion object {
+        private const val TAG = "CommissionsFragment"
+        private const val BASE = "https://vinor.ir"
+        private const val COMMISSIONS_DATA = "/express/partner/commissions/data"
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentCommissionsBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        loadData()
+    }
+
+    override fun onDestroyView() {
+        job.cancel()
+        super.onDestroyView()
+        _binding = null
+    }
+
+    private fun cookieHeader(): String = CookieManager.getInstance().getCookie(BASE) ?: ""
+
+    private fun formatToman(value: Int): String {
+        if (value == 0) return "۰"
+        val s = value.toString().reversed().chunked(3).joinToString("،").reversed()
+        return toPersianDigits(s)
+    }
+
+    private fun toPersianDigits(s: String): String {
+        val persian = "۰۱۲۳۴۵۶۷۸۹"
+        return s.map { c -> if (c in '0'..'9') persian[c - '0'] else c }.joinToString("")
+    }
+
+    private fun formatDate(iso: String?): String {
+        if (iso.isNullOrBlank()) return "—"
+        return try {
+            val inFmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            val outFmt = SimpleDateFormat("yyyy/MM/dd", Locale("fa"))
+            val d = inFmt.parse(iso.replace("Z", "").take(19))
+            if (d != null) outFmt.format(d) else iso.take(10)
+        } catch (_: Exception) {
+            iso.take(10).replace("-", "/")
+        }
+    }
+
+    private fun statusText(status: String): String = when (status) {
+        "paid" -> "پرداخت‌شده"
+        "approved" -> "تایید شده"
+        "rejected" -> "رد شده"
+        else -> "در انتظار"
+    }
+
+    private fun statusColor(status: String): Int = when (status) {
+        "paid" -> 0xFF16a34a.toInt()
+        "approved" -> 0xFF2563EB.toInt()
+        "rejected" -> 0xFFDC2626.toInt()
+        else -> 0xFFD97706.toInt()
+    }
+
+    private fun loadData() {
+        binding.commissionsProgress.visibility = View.VISIBLE
+        binding.commissionsList.visibility = View.VISIBLE
+        binding.commissionsEmpty.visibility = View.GONE
+
+        scope.launch {
+            try {
+                val req = Request.Builder()
+                    .url("$BASE$COMMISSIONS_DATA")
+                    .addHeader("Cookie", cookieHeader())
+                    .addHeader("Accept", "application/json")
+                    .build()
+                val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
+                if (!resp.isSuccessful) {
+                    withContext(Dispatchers.Main) { showError() }
+                    return@launch
+                }
+                val body = resp.body?.string() ?: ""
+                val obj = JSONObject(body)
+                if (!obj.optBoolean("success", false)) {
+                    withContext(Dispatchers.Main) { showError() }
+                    return@launch
+                }
+                val total = obj.optInt("total_commission", 0)
+                val pending = obj.optInt("pending_commission", 0)
+                val paid = obj.optInt("paid_commission", 0)
+                val soldCount = obj.optInt("sold_count", 0)
+                val itemsArr = obj.optJSONArray("items") ?: org.json.JSONArray()
+                val items = mutableListOf<JSONObject>()
+                for (i in 0 until itemsArr.length()) {
+                    items.add(itemsArr.getJSONObject(i))
+                }
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    bind(total, pending, paid, soldCount, items)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "loadData error", e)
+                withContext(Dispatchers.Main) { showError() }
+            }
+        }
+    }
+
+    private fun showError() {
+        if (_binding == null) return
+        binding.commissionsProgress.visibility = View.GONE
+        Toast.makeText(requireContext(), "خطا در بارگذاری پورسانت‌ها", Toast.LENGTH_SHORT).show()
+        binding.commissionsEmpty.visibility = View.VISIBLE
+        binding.commissionsList.visibility = View.GONE
+    }
+
+    private fun bind(
+        total: Int,
+        pending: Int,
+        paid: Int,
+        soldCount: Int,
+        items: List<JSONObject>
+    ) {
+        binding.commissionsProgress.visibility = View.GONE
+        binding.commissionsTotal.text = formatToman(total) + " تومان"
+        binding.commissionsPending.text = formatToman(pending) + " تومان"
+        binding.commissionsPaid.text = formatToman(paid) + " تومان"
+        binding.commissionsSoldCount.text = toPersianDigits(soldCount.toString())
+
+        val list = binding.commissionsList
+        list.removeAllViews()
+
+        if (items.isEmpty()) {
+            list.visibility = View.GONE
+            binding.commissionsEmpty.visibility = View.VISIBLE
+            return
+        }
+        list.visibility = View.VISIBLE
+        binding.commissionsEmpty.visibility = View.GONE
+
+        for (i in items.indices) {
+            val c = items[i]
+            val itemBinding = ItemCommissionBinding.inflate(layoutInflater, list, false)
+            itemBinding.itemCommissionLandCode.text = "کد فایل: ${c.optString("land_code", "—")}"
+            itemBinding.itemCommissionDate.text = formatDate(c.optString("created_at"))
+            val status = (c.optString("status", "pending")).strip()
+            itemBinding.itemCommissionStatus.text = statusText(status)
+            itemBinding.itemCommissionStatus.setTextColor(statusColor(status))
+            val pct = c.optDouble("commission_pct", 0.0)
+            itemBinding.itemCommissionPct.text = if (pct == pct.toLong().toDouble()) "${pct.toLong()}%" else "$pct%"
+            itemBinding.itemCommissionAmount.text = formatToman(c.optInt("commission_amount", 0)) + " تومان"
+            val saleAmount = c.optInt("sale_amount", 0)
+            if (saleAmount > 0) {
+                itemBinding.itemCommissionSaleRow.visibility = View.VISIBLE
+                itemBinding.itemCommissionSaleAmount.text = formatToman(saleAmount) + " تومان"
+            } else {
+                itemBinding.itemCommissionSaleRow.visibility = View.GONE
+            }
+            list.addView(itemBinding.root)
+        }
+    }
+}
