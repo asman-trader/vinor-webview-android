@@ -22,7 +22,7 @@
         android:id="@+id/routineFragment"
         android:name="ir.vinor.app.RoutineFragment"
         android:label="روتین"
-        tools:layout="@layout/fragment_webview" />
+        tools:layout="@layout/fragment_routine" />
 
     <fragment
         android:id="@+id/profileFragment"

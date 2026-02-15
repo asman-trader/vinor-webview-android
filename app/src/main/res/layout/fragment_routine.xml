@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/vinor_bg_dark"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layoutDirection="rtl">
+
+        <!-- پیشرفت امروز -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="#1F2937"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:strokeColor="#374151"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="پیشرفت امروز"
+                        android:textColor="#F9FAFB"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/routineProgressText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_routine_badge"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="4dp"
+                        android:text="۰ / ۳"
+                        android:textColor="#D1D5DB"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <ProgressBar
+                    android:id="@+id/routineProgressBar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="8dp"
+                    android:max="3"
+                    android:progress="0"
+                    android:progressTint="#16a34a"
+                    android:progressBackgroundTint="#374151" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal"
+                    android:gravity="start">
+
+                    <CheckBox
+                        android:id="@+id/step1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="16dp"
+                        android:text="بازاریابی"
+                        android:textColor="#E5E7EB"
+                        android:textSize="12sp" />
+
+                    <CheckBox
+                        android:id="@+id/step2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="16dp"
+                        android:text="بازدید"
+                        android:textColor="#E5E7EB"
+                        android:textSize="12sp" />
+
+                    <CheckBox
+                        android:id="@+id/step3"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="معامله"
+                        android:textColor="#E5E7EB"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- تقویم -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="#1F2937"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:strokeColor="#374151"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <ImageButton
+                        android:id="@+id/btnPrevMonth"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="ماه قبل"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="#9CA3AF" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="تقویم انجام روتین"
+                            android:textColor="#F9FAFB"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/routineMonthLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#9CA3AF"
+                            android:textSize="12sp"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <ImageButton
+                        android:id="@+id/btnNextMonth"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="ماه بعد"
+                        android:src="@drawable/ic_chevron_left"
+                        app:tint="#9CA3AF" />
+                </LinearLayout>
+
+                <!-- روزهای هفته -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="4dp">
+                    <TextView android:text="ش" android:textColor="#9CA3AF" android:textSize="11sp" android:gravity="center" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" />
+                    <TextView android:text="ی" android:textColor="#9CA3AF" android:textSize="11sp" android:gravity="center" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" />
+                    <TextView android:text="د" android:textColor="#9CA3AF" android:textSize="11sp" android:gravity="center" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" />
+                    <TextView android:text="س" android:textColor="#9CA3AF" android:textSize="11sp" android:gravity="center" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" />
+                    <TextView android:text="چ" android:textColor="#9CA3AF" android:textSize="11sp" android:gravity="center" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" />
+                    <TextView android:text="پ" android:textColor="#9CA3AF" android:textSize="11sp" android:gravity="center" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" />
+                    <TextView android:text="ج" android:textColor="#9CA3AF" android:textSize="11sp" android:gravity="center" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" />
+                </LinearLayout>
+
+                <GridLayout
+                    android:id="@+id/routineCalendar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="7"
+                    android:useDefaultMargins="false" />
+
+                <TextView
+                    android:id="@+id/routineStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="#9CA3AF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- آموزش ۳ مرحله‌ای -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardTraining"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#1F2937"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:strokeColor="#374151"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="12dp">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_help"
+                    app:tint="#6366F1"
+                    android:contentDescription="" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="آموزش ۳ مرحله‌ای"
+                        android:textColor="#F9FAFB"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="مشاهده راهنمای کوتاه مراحل"
+                        android:textColor="#9CA3AF"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_chevron_left"
+                    app:tint="#9CA3AF"
+                    android:contentDescription="" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</ScrollView>
