@@ -5,13 +5,18 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
+import android.widget.FrameLayout
 import android.widget.GridLayout
+import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.fragment.app.Fragment
 import ir.vinor.app.databinding.FragmentRoutineBinding
 import kotlinx.coroutines.CoroutineScope
@@ -31,8 +36,8 @@ import android.webkit.CookieManager
 import java.util.concurrent.TimeUnit
 
 /**
- * تب روتین - کاملاً نیتیو (بدون WebView)
- * از API سایت برای داده‌های تقویم و مراحل استفاده می‌کند.
+ * تب روتین - کاملاً نیتیو و هم‌سطح با وب:
+ * چیپ‌های مراحل، نوار پیشرفت رنگی، تقویم با steps و رنگ سلول، امروز با ring، وضعیت و کارت آموزش.
  */
 class RoutineFragment : Fragment() {
 
@@ -48,8 +53,23 @@ class RoutineFragment : Fragment() {
 
     private var currentMonth: Calendar = Calendar.getInstance(Locale.US)
     private var completedDays: List<String> = emptyList()
+    private var monthSteps: Map<String, Int> = emptyMap()
     private var stepsDetail: List<String> = emptyList()
     private var todayStr: String = ""
+
+    private val progressColors = intArrayOf(
+        0xFF4B5563.toInt(),  // 0 خاکستری
+        0xFF2563EB.toInt(),  // 1 آبی
+        0xFFD97706.toInt(),  // 2 نارنجی
+        0xFF16a34a.toInt()   // 3 سبز
+    )
+
+    private val chipBgRes = intArrayOf(
+        R.drawable.bg_routine_chip,
+        R.drawable.bg_routine_chip_blue,
+        R.drawable.bg_routine_chip_amber,
+        R.drawable.bg_routine_chip_emerald
+    )
 
     companion object {
         private const val TAG = "RoutineFragment"
@@ -57,6 +77,7 @@ class RoutineFragment : Fragment() {
         private const val ROUTINE_DATA = "/express/partner/routine/data"
         private const val ROUTINE_STEPS_DETAIL = "/express/partner/routine/steps/detail"
         private const val ROUTINE_STEPS = "/express/partner/routine/steps"
+        private val PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
     }
 
     override fun onCreateView(
@@ -75,9 +96,7 @@ class RoutineFragment : Fragment() {
         setupCalendarNav()
         loadTodayDetail()
         loadMonthData()
-        binding.cardTraining.setOnClickListener {
-            openTraining()
-        }
+        binding.cardTraining.setOnClickListener { openTraining() }
     }
 
     override fun onDestroyView() {
@@ -96,27 +115,60 @@ class RoutineFragment : Fragment() {
         return String.format(Locale.US, "%04d-%02d-%02d", c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
     }
 
-    private fun setupSteps() {
+    private fun toPersianDigits(n: Int): String {
+        return n.toString().map { c -> if (c in '0'..'9') PERSIAN_DIGITS[c - '0'] else c }.joinToString("")
+    }
+
+    private fun setStatus(message: String) {
+        if (_binding == null) return
+        binding.routineStatus.text = message
+    }
+
+    private fun updateStepChipsAndProgress() {
+        if (_binding == null) return
         val step1 = binding.step1
         val step2 = binding.step2
         val step3 = binding.step3
-        val progressBar = binding.routineProgressBar
-        val progressText = binding.routineProgressText
+        val n = (if (step1.isChecked) 1 else 0) + (if (step2.isChecked) 1 else 0) + (if (step3.isChecked) 1 else 0)
+        val colorKey = n.coerceIn(0, 3)
 
-        fun updateProgress() {
-            var n = 0
-            if (step1.isChecked) n++
-            if (step2.isChecked) n++
-            if (step3.isChecked) n++
-            progressBar.progress = n
-            progressText.text = "$n / ۳"
+        binding.routineProgressBar.progress = n
+        setProgressBarTint(binding.routineProgressBar, progressColors[colorKey])
+        binding.routineProgressText.text = "${toPersianDigits(n)} / ${toPersianDigits(3)}"
+
+        listOf(
+            Triple(binding.step1Chip, binding.step1Dot, step1.isChecked),
+            Triple(binding.step2Chip, binding.step2Dot, step2.isChecked),
+            Triple(binding.step3Chip, binding.step3Dot, step3.isChecked)
+        ).forEach { (chip, dot, checked) ->
+            val key = if (checked) colorKey else 0
+            chip.setBackgroundResource(chipBgRes[key])
+            dot.setBackgroundResource(R.drawable.bg_routine_dot)
+            dot.background?.mutate()?.let { DrawableCompat.setTint(it, progressColors[key]) }
         }
+    }
 
-        val listener: (Boolean) -> Unit = { _ -> updateProgress(); saveSteps() }
-        step1.setOnCheckedChangeListener { _, _ -> updateProgress(); saveSteps() }
-        step2.setOnCheckedChangeListener { _, _ -> updateProgress(); saveSteps() }
-        step3.setOnCheckedChangeListener { _, _ -> updateProgress(); saveSteps() }
-        updateProgress()
+    private fun setupSteps() {
+        binding.step1Chip.setOnClickListener {
+            binding.step1.isChecked = !binding.step1.isChecked
+            updateStepChipsAndProgress()
+            saveSteps()
+        }
+        binding.step2Chip.setOnClickListener {
+            binding.step2.isChecked = !binding.step2.isChecked
+            updateStepChipsAndProgress()
+            saveSteps()
+        }
+        binding.step3Chip.setOnClickListener {
+            binding.step3.isChecked = !binding.step3.isChecked
+            updateStepChipsAndProgress()
+            saveSteps()
+        }
+        updateStepChipsAndProgress()
+    }
+
+    private fun setProgressBarTint(bar: ProgressBar, color: Int) {
+        bar.progressTintList = android.content.res.ColorStateList.valueOf(color)
     }
 
     private fun saveSteps() {
@@ -137,11 +189,14 @@ class RoutineFragment : Fragment() {
                     .addHeader("Cookie", cookieHeader())
                     .addHeader("Content-Type", "application/json")
                     .build()
-                withContext(Dispatchers.IO) {
-                    client.newCall(req).execute()
-                }.use { resp ->
+                withContext(Dispatchers.IO) { client.newCall(req).execute() }.use { resp ->
                     if (resp.isSuccessful) {
-                        loadMonthData()
+                        withContext(Dispatchers.Main) {
+                            if (_binding != null) {
+                                setStatus("پیشرفت ثبت شد.")
+                                loadMonthData()
+                            }
+                        }
                     } else {
                         withContext(Dispatchers.Main) {
                             Toast.makeText(requireContext(), "خطا در ذخیره", Toast.LENGTH_SHORT).show()
@@ -161,10 +216,7 @@ class RoutineFragment : Fragment() {
         scope.launch {
             try {
                 val url = "$BASE$ROUTINE_STEPS_DETAIL?date=${URLEncoder.encode(todayStr, "UTF-8")}"
-                val req = Request.Builder()
-                    .url(url)
-                    .addHeader("Cookie", cookieHeader())
-                    .build()
+                val req = Request.Builder().url(url).addHeader("Cookie", cookieHeader()).build()
                 val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
                 if (!resp.isSuccessful) return@launch
                 val body = resp.body?.string() ?: return@launch
@@ -178,8 +230,7 @@ class RoutineFragment : Fragment() {
                     binding.step1.isChecked = stepsDetail.contains("1")
                     binding.step2.isChecked = stepsDetail.contains("2")
                     binding.step3.isChecked = stepsDetail.contains("3")
-                    binding.routineProgressBar.progress = stepsDetail.size
-                    binding.routineProgressText.text = "${stepsDetail.size} / ۳"
+                    updateStepChipsAndProgress()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "loadTodayDetail error", e)
@@ -192,10 +243,7 @@ class RoutineFragment : Fragment() {
         scope.launch {
             try {
                 val url = "$BASE$ROUTINE_DATA?month=${URLEncoder.encode(month, "UTF-8")}"
-                val req = Request.Builder()
-                    .url(url)
-                    .addHeader("Cookie", cookieHeader())
-                    .build()
+                val req = Request.Builder().url(url).addHeader("Cookie", cookieHeader()).build()
                 val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
                 if (!resp.isSuccessful) return@launch
                 val body = resp.body?.string() ?: return@launch
@@ -204,8 +252,17 @@ class RoutineFragment : Fragment() {
                 completedDays = mutableListOf<String>().apply {
                     if (daysArr != null) for (i in 0 until daysArr.length()) add(daysArr.optString(i, ""))
                 }
+                val stepsObj = obj.optJSONObject("steps")
+                monthSteps = mutableMapOf<String, Int>().apply {
+                    if (stepsObj != null) {
+                        stepsObj.keys().forEach { key ->
+                            put(key, stepsObj.optInt(key, 0).coerceIn(0, 3))
+                        }
+                    }
+                }
                 withContext(Dispatchers.Main) {
                     if (_binding == null) return@withContext
+                    setStatus("روزهای انجام‌شده از سرور بارگذاری شد.")
                     updateMonthLabel()
                     fillCalendar()
                 }
@@ -214,6 +271,8 @@ class RoutineFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     if (_binding == null) return@withContext
                     completedDays = emptyList()
+                    monthSteps = emptyMap()
+                    setStatus("")
                     updateMonthLabel()
                     fillCalendar()
                 }
@@ -228,8 +287,6 @@ class RoutineFragment : Fragment() {
             String.format(Locale.US, "%04d-%02d", currentMonth.get(Calendar.YEAR), currentMonth.get(Calendar.MONTH) + 1)
         }
         binding.routineMonthLabel.text = monthName
-        val count = completedDays.size
-        binding.routineStatus.text = if (count > 0) "$count روز انجام روتین در این ماه" else ""
     }
 
     private fun fillCalendar() {
@@ -238,40 +295,74 @@ class RoutineFragment : Fragment() {
         grid.removeAllViews()
         val cal = currentMonth.clone() as Calendar
         cal.set(Calendar.DAY_OF_MONTH, 1)
-        val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK) // 1=Sunday -> 0-based col
+        val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
         val numEmpty = firstDayOfWeek - 1
         val maxDay = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
         val year = cal.get(Calendar.YEAR)
         val month = cal.get(Calendar.MONTH) + 1
         val dp = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics).toInt()
         val cellSize = (resources.displayMetrics.widthPixels - 32 * dp) / 7
-        val cellH = 36 * dp
+        val cellH = 40 * dp
+
+        val cellBgRes = intArrayOf(
+            R.drawable.bg_calendar_cell,
+            R.drawable.bg_calendar_done1,
+            R.drawable.bg_calendar_done2,
+            R.drawable.bg_calendar_done3
+        )
+        val cellTextColors = intArrayOf(
+            0xFF9CA3AF.toInt(),
+            0xFF93C5FD.toInt(),
+            0xFFFCD34D.toInt(),
+            0xFF4ADE80.toInt()
+        )
 
         var index = 0
         for (i in 0 until numEmpty) {
-            val tv = TextView(requireContext())
-            tv.text = ""
+            val place = FrameLayout(requireContext())
             val lp = GridLayout.LayoutParams(GridLayout.spec(index / 7), GridLayout.spec(index % 7))
             lp.width = cellSize
             lp.height = cellH
             lp.setMargins(2, 2, 2, 2)
-            tv.layoutParams = lp
-            grid.addView(tv)
+            place.layoutParams = lp
+            grid.addView(place)
             index++
         }
         for (day in 1..maxDay) {
             val dateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
-            val tv = TextView(requireContext())
-            tv.text = day.toString()
-            tv.gravity = android.view.Gravity.CENTER
-            tv.setTextColor(if (completedDays.contains(dateStr)) 0xFF16a34a.toInt() else 0xFF9CA3AF.toInt())
-            tv.textSize = 12f
+            val stepCount = (monthSteps[dateStr] ?: 0).coerceIn(0, 3)
+            val isToday = dateStr == todayStr
+
+            val cell = FrameLayout(requireContext())
+            cell.setBackgroundResource(if (isToday) R.drawable.bg_calendar_today else cellBgRes[stepCount])
             val lp = GridLayout.LayoutParams(GridLayout.spec(index / 7), GridLayout.spec(index % 7))
             lp.width = cellSize
             lp.height = cellH
             lp.setMargins(2, 2, 2, 2)
-            tv.layoutParams = lp
-            grid.addView(tv)
+            cell.layoutParams = lp
+
+            val inner = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+            }
+            val dayTv = TextView(requireContext()).apply {
+                text = toPersianDigits(day)
+                setTextColor(cellTextColors[stepCount])
+                textSize = 12f
+                gravity = Gravity.CENTER
+            }
+            inner.addView(dayTv)
+            if (stepCount > 0) {
+                val dotsTv = TextView(requireContext()).apply {
+                    text = "• ".repeat(stepCount).trimEnd()
+                    setTextColor(cellTextColors[stepCount])
+                    textSize = 10f
+                    gravity = Gravity.CENTER
+                }
+                inner.addView(dotsTv)
+            }
+            cell.addView(inner)
+            grid.addView(cell)
             index++
         }
     }
@@ -289,8 +380,7 @@ class RoutineFragment : Fragment() {
 
     private fun openTraining() {
         try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("$BASE/express/partner/training"))
-            startActivity(intent)
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$BASE/express/partner/training")))
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "خطا در باز کردن لینک", Toast.LENGTH_SHORT).show()
         }
