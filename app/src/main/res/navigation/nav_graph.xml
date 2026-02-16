@@ -28,7 +28,7 @@
         android:id="@+id/profileFragment"
         android:name="ir.vinor.app.ProfileFragment"
         android:label="من"
-        tools:layout="@layout/fragment_webview" />
+        tools:layout="@layout/fragment_profile" />
 
     <!-- نگه‌داری برای سازگاری با مسیرهای قدیمی (در منو نمایش داده نمی‌شوند) -->
     <fragment
