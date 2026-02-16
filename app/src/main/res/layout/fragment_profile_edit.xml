@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/vinor_bg_dark"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layoutDirection="rtl">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageButton
+                android:id="@+id/profileEditBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="بازگشت"
+                android:src="@drawable/ic_chevron_right"
+                app:tint="#9CA3AF" />
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="ویرایش پروفایل"
+                android:textColor="#F9FAFB"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+            <View
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/profileEditProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
+        <!-- معرفی -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_routine_card"
+            android:padding="16dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <FrameLayout
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_routine_chip_emerald">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:text="⚙"
+                        android:textSize="18sp" />
+                </FrameLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="تنظیمات پروفایل"
+                        android:textColor="#F9FAFB"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="لطفاً اطلاعات خود را دقیق و خوانا وارد کنید."
+                        android:textColor="#9CA3AF"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- فرم -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_routine_card"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="نام و نام خانوادگی"
+                    android:textColor="#9CA3AF"
+                    android:textSize="12sp" />
+                <EditText
+                    android:id="@+id/profileEditName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_routine_chip"
+                    android:hint="مثال: علی رضایی"
+                    android:inputType="textPersonName"
+                    android:maxLength="60"
+                    android:padding="12dp"
+                    android:textColor="#F9FAFB"
+                    android:textColorHint="#6B7280"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="شهر"
+                    android:textColor="#9CA3AF"
+                    android:textSize="12sp" />
+                <Spinner
+                    android:id="@+id/profileEditCity"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_routine_chip"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="درباره من (حداکثر ۲۰۰ کاراکتر)"
+                    android:textColor="#9CA3AF"
+                    android:textSize="12sp" />
+                <EditText
+                    android:id="@+id/profileEditBio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_routine_chip"
+                    android:gravity="top"
+                    android:hint="توضیحات کوتاه درباره‌ی شما (اختیاری)"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:maxLength="200"
+                    android:minLines="3"
+                    android:padding="12dp"
+                    android:textColor="#F9FAFB"
+                    android:textColorHint="#6B7280"
+                    android:textSize="14sp" />
+                <TextView
+                    android:id="@+id/profileEditBioCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:layout_marginTop="4dp"
+                    android:text="0/200"
+                    android:textColor="#9CA3AF"
+                    android:textSize="11sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/profileEditCancel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_routine_card"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingVertical="14dp"
+                        android:text="انصراف"
+                        android:textColor="#E5E7EB"
+                        android:textSize="14sp" />
+                    <TextView
+                        android:id="@+id/profileEditSave"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_button_primary"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingVertical="14dp"
+                        android:text="ذخیره تغییرات"
+                        android:textColor="#F9FAFB"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+</ScrollView>

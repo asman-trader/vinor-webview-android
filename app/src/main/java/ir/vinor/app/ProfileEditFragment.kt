@@ -1,0 +1,201 @@
+package ir.vinor.app
+
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import ir.vinor.app.databinding.FragmentProfileEditBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import android.webkit.CookieManager
+import java.util.concurrent.TimeUnit
+
+/**
+ * صفحه ویرایش پروفایل - کاملاً نیتیو.
+ * داده از GET /express/partner/profile/edit/data؛ ذخیره با POST /express/partner/api/profile/update.
+ */
+class ProfileEditFragment : Fragment() {
+
+    private var _binding: FragmentProfileEditBinding? = null
+    private val binding get() = _binding!!
+
+    private val job = Job()
+    private val scope = CoroutineScope(Dispatchers.Main + job)
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    companion object {
+        private const val TAG = "ProfileEditFragment"
+        private const val BASE = "https://vinor.ir"
+        private const val PROFILE_EDIT_DATA = "/express/partner/profile/edit/data"
+        private const val PROFILE_UPDATE = "/express/partner/api/profile/update"
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentProfileEditBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.profileEditBack.setOnClickListener {
+            findNavController().navigateUp()
+        }
+        binding.profileEditCancel.setOnClickListener {
+            findNavController().navigateUp()
+        }
+        binding.profileEditSave.setOnClickListener { save() }
+        binding.profileEditBio.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                binding.profileEditBioCount.text = "${s?.length ?: 0}/200"
+            }
+        })
+        loadData()
+    }
+
+    override fun onDestroyView() {
+        job.cancel()
+        super.onDestroyView()
+        _binding = null
+    }
+
+    private fun cookieHeader(): String = CookieManager.getInstance().getCookie(BASE) ?: ""
+
+    private fun loadData() {
+        if (_binding == null) return
+        binding.profileEditProgress.visibility = View.VISIBLE
+        scope.launch {
+            try {
+                val req = Request.Builder()
+                    .url("$BASE$PROFILE_EDIT_DATA")
+                    .addHeader("Cookie", cookieHeader())
+                    .addHeader("Accept", "application/json")
+                    .build()
+                val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
+                if (!resp.isSuccessful) {
+                    withContext(Dispatchers.Main) {
+                        if (_binding != null) {
+                            binding.profileEditProgress.visibility = View.GONE
+                            context?.let { Toast.makeText(it, "خطا در بارگذاری", Toast.LENGTH_SHORT).show() }
+                            findNavController().navigateUp()
+                        }
+                    }
+                    return@launch
+                }
+                val body = resp.body?.string() ?: ""
+                val obj = JSONObject(body)
+                if (!obj.optBoolean("success", false)) {
+                    withContext(Dispatchers.Main) {
+                        if (_binding != null) {
+                            binding.profileEditProgress.visibility = View.GONE
+                            findNavController().navigateUp()
+                        }
+                    }
+                    return@launch
+                }
+                val meName = obj.optString("me_name", "")
+                val meCity = obj.optString("me_city", "")
+                val meBio = obj.optString("me_bio", "")
+                val citiesArr = obj.optJSONArray("cities") ?: org.json.JSONArray()
+                val cities = mutableListOf<String>().apply {
+                    add("انتخاب شهر")
+                    for (i in 0 until citiesArr.length()) {
+                        val c = citiesArr.optString(i, "").trim()
+                        if (c.isNotEmpty()) add(c)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    binding.profileEditProgress.visibility = View.GONE
+                    binding.profileEditName.setText(meName)
+                    binding.profileEditBio.setText(meBio)
+                    binding.profileEditBioCount.text = "${meBio.length}/200"
+                    val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, cities).apply {
+                        setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                    }
+                    binding.profileEditCity.adapter = adapter
+                    val cityIndex = cities.indexOf(meCity).takeIf { it >= 0 } ?: 0
+                    binding.profileEditCity.setSelection(cityIndex)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "loadData error", e)
+                withContext(Dispatchers.Main) {
+                    if (_binding != null) {
+                        binding.profileEditProgress.visibility = View.GONE
+                        context?.let { Toast.makeText(it, "خطا در بارگذاری", Toast.LENGTH_SHORT).show() }
+                        findNavController().navigateUp()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun save() {
+        if (_binding == null) return
+        val name = binding.profileEditName.text?.toString()?.trim() ?: ""
+        val pos = binding.profileEditCity.selectedItemPosition
+        val city = if (pos <= 0) "" else (binding.profileEditCity.adapter?.getItem(pos)?.toString()?.takeIf { it != "انتخاب شهر" } ?: "")
+        val bio = (binding.profileEditBio.text?.toString() ?: "").trim().take(200)
+
+        scope.launch {
+            try {
+                val json = JSONObject()
+                    .put("name", name)
+                    .put("city", city)
+                    .put("bio", bio)
+                val body = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                val req = Request.Builder()
+                    .url("$BASE$PROFILE_UPDATE")
+                    .post(body)
+                    .addHeader("Cookie", cookieHeader())
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+                val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    if (resp.isSuccessful) {
+                        val ok = runCatching {
+                            JSONObject(resp.body?.string() ?: "{}").optBoolean("success", false)
+                        }.getOrElse { false }
+                        if (ok) {
+                            context?.let { Toast.makeText(it, "مشخصات با موفقیت به‌روزرسانی شد.", Toast.LENGTH_SHORT).show() }
+                            findNavController().navigateUp()
+                        } else {
+                            context?.let { Toast.makeText(it, "خطا در ذخیره", Toast.LENGTH_SHORT).show() }
+                        }
+                    } else {
+                        context?.let { Toast.makeText(it, "خطا در ذخیره", Toast.LENGTH_SHORT).show() }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "save error", e)
+                withContext(Dispatchers.Main) {
+                    context?.let { Toast.makeText(it, "خطا در ارتباط", Toast.LENGTH_SHORT).show() }
+                }
+            }
+        }
+    }
+}
