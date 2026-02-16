@@ -23,8 +23,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import android.webkit.CookieManager
-import java.io.InputStream
-import java.net.URL
+import java.io.ByteArrayInputStream
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -146,7 +145,16 @@ class DashboardFragment : Fragment() {
                     return@launch
                 }
                 val body = resp.body?.string() ?: ""
-                val obj = JSONObject(body)
+                if (body.isBlank()) {
+                    Log.w(TAG, "dashboard/data empty body")
+                    withContext(Dispatchers.Main) { showError() }
+                    return@launch
+                }
+                val obj = try { JSONObject(body) } catch (e: Exception) {
+                    Log.e(TAG, "dashboard/data not JSON: ${body.take(200)}", e)
+                    withContext(Dispatchers.Main) { showError() }
+                    return@launch
+                }
                 if (!obj.optBoolean("success", false)) {
                     withContext(Dispatchers.Main) { showError() }
                     return@launch
@@ -161,8 +169,14 @@ class DashboardFragment : Fragment() {
                 val landsArr = obj.optJSONArray("assigned_lands") ?: org.json.JSONArray()
                 val lands = mutableListOf<JSONObject>()
                 for (i in 0 until landsArr.length()) {
-                    lands.add(landsArr.getJSONObject(i))
+                    try {
+                        val item = landsArr.optJSONObject(i) ?: continue
+                        lands.add(item)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "skip land item $i", e)
+                    }
                 }
+                Log.d(TAG, "dashboard/data lands=${lands.size}")
                 withContext(Dispatchers.Main) {
                     if (_binding == null) return@withContext
                     bind(
@@ -235,68 +249,74 @@ class DashboardFragment : Fragment() {
         binding.dashboardEmpty.visibility = View.GONE
 
         for (i in lands.indices) {
-            val land = lands[i]
-            val itemBinding = ItemLandCardBinding.inflate(layoutInflater, list, false)
-            itemBinding.landCardTitle.text = land.optString("title", "—")
-            val price = land.optInt("price_total", 0)
-            itemBinding.landCardPrice.text = formatToman(price) + " تومان"
-            val commissionAmount = land.optInt("commission_amount", 0)
-            val commissionPct = land.optDouble("commission_pct", 0.0)
-            if (commissionAmount > 0 || commissionPct > 0) {
-                itemBinding.landCardCommission.visibility = View.VISIBLE
-                itemBinding.landCardCommission.text =
-                    "پورسانت: " + formatToman(commissionAmount) + " تومان" +
-                        (if (commissionPct > 0) " (${commissionPct.toLong()}%)" else "")
-            } else {
-                itemBinding.landCardCommission.visibility = View.GONE
-            }
-            val metaParts = listOfNotNull(
-                land.optString("size").takeIf { it.isNotBlank() }?.let { "$it متر" },
-                land.optString("location").takeIf { it.isNotBlank() },
-                land.optString("city").takeIf { it.isNotBlank() },
-                land.optString("category").takeIf { it.isNotBlank() }
-            )
-            itemBinding.landCardMeta.text = metaParts.joinToString(" • ").ifBlank { "—" }
-            itemBinding.landCardDate.text = formatDate(land.optString("created_at"))
+            try {
+                val land = lands[i]
+                val itemBinding = ItemLandCardBinding.inflate(layoutInflater, list, false)
+                itemBinding.landCardTitle.text = land.optString("title", "—")
+                val price = land.optInt("price_total", 0)
+                itemBinding.landCardPrice.text = formatToman(price) + " تومان"
+                val commissionAmount = land.optInt("commission_amount", 0)
+                val commissionPct = land.optDouble("commission_pct", 0.0)
+                if (commissionAmount > 0 || commissionPct > 0) {
+                    itemBinding.landCardCommission.visibility = View.VISIBLE
+                    itemBinding.landCardCommission.text =
+                        "پورسانت: " + formatToman(commissionAmount) + " تومان" +
+                            (if (commissionPct > 0) " (${commissionPct.toLong()}%)" else "")
+                } else {
+                    itemBinding.landCardCommission.visibility = View.GONE
+                }
+                val metaParts = listOfNotNull(
+                    land.optString("size").takeIf { it.isNotBlank() }?.let { "$it متر" },
+                    land.optString("location").takeIf { it.isNotBlank() },
+                    land.optString("city").takeIf { it.isNotBlank() },
+                    land.optString("category").takeIf { it.isNotBlank() }
+                )
+                itemBinding.landCardMeta.text = metaParts.joinToString(" • ").ifBlank { "—" }
+                itemBinding.landCardDate.text = formatDate(land.optString("created_at"))
 
-            val status = land.optString("assignment_status", "active").trim()
-            val isExpired = land.optBoolean("is_expired", false)
-            itemBinding.landCardStatusChip.text = when {
-                isExpired -> "منقضی"
-                status == "sold" -> "فروخته شد"
-                else -> "فعال"
-            }
-            when {
-                isExpired -> {
-                    itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_calendar_done2)
-                    itemBinding.landCardStatusChip.setTextColor(0xFF9CA3AF.toInt())
+                val status = land.optString("assignment_status", "active").trim()
+                val isExpired = land.optBoolean("is_expired", false)
+                itemBinding.landCardStatusChip.text = when {
+                    isExpired -> "منقضی"
+                    status == "sold" -> "فروخته شد"
+                    else -> "فعال"
                 }
-                status == "sold" -> {
-                    itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_routine_chip_emerald)
-                    itemBinding.landCardStatusChip.setTextColor(0xFF4ADE80.toInt())
+                when {
+                    isExpired -> {
+                        itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_calendar_done2)
+                        itemBinding.landCardStatusChip.setTextColor(0xFF9CA3AF.toInt())
+                    }
+                    status == "sold" -> {
+                        itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_routine_chip_emerald)
+                        itemBinding.landCardStatusChip.setTextColor(0xFF4ADE80.toInt())
+                    }
+                    else -> {
+                        itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_routine_chip_blue)
+                        itemBinding.landCardStatusChip.setTextColor(0xFF93C5FD.toInt())
+                    }
                 }
-                else -> {
-                    itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_routine_chip_blue)
-                    itemBinding.landCardStatusChip.setTextColor(0xFF93C5FD.toInt())
-                }
-            }
 
-            val imageUrl = land.optString("image_url").takeIf { it.isNotBlank() }
-            if (!imageUrl.isNullOrBlank()) {
-                val fullUrl = if (imageUrl.startsWith("http")) imageUrl else "$BASE$imageUrl"
-                loadLandImage(fullUrl, itemBinding.landCardImage, itemBinding.landCardImagePlaceholder)
-            } else {
-                itemBinding.landCardImage.visibility = View.GONE
-                itemBinding.landCardImagePlaceholder.visibility = View.VISIBLE
-            }
-
-            val detailUrl = land.optString("detail_url").takeIf { it.isNotBlank() }
-            itemBinding.root.setOnClickListener {
-                if (!detailUrl.isNullOrBlank()) {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(detailUrl)))
+                val imageUrl = land.optString("image_url").takeIf { it.isNotBlank() }
+                if (!imageUrl.isNullOrBlank()) {
+                    val fullUrl = if (imageUrl.startsWith("http")) imageUrl else "$BASE$imageUrl"
+                    itemBinding.landCardImage.visibility = View.GONE
+                    itemBinding.landCardImagePlaceholder.visibility = View.VISIBLE
+                    loadLandImage(fullUrl, itemBinding.landCardImage, itemBinding.landCardImagePlaceholder)
+                } else {
+                    itemBinding.landCardImage.visibility = View.GONE
+                    itemBinding.landCardImagePlaceholder.visibility = View.VISIBLE
                 }
+
+                val detailUrl = land.optString("detail_url").takeIf { it.isNotBlank() }
+                itemBinding.root.setOnClickListener {
+                    if (!detailUrl.isNullOrBlank()) {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(detailUrl)))
+                    }
+                }
+                list.addView(itemBinding.root)
+            } catch (e: Exception) {
+                Log.e(TAG, "bind land card $i failed", e)
             }
-            list.addView(itemBinding.root)
         }
     }
 
@@ -304,8 +324,14 @@ class DashboardFragment : Fragment() {
         scope.launch {
             try {
                 val bitmap = withContext(Dispatchers.IO) {
-                    (URL(url).openConnection().getInputStream() as? InputStream)?.use { stream ->
-                        BitmapFactory.decodeStream(stream)
+                    val req = Request.Builder()
+                        .url(url)
+                        .addHeader("Cookie", cookieHeader())
+                        .build()
+                    client.newCall(req).execute().use { resp ->
+                        if (!resp.isSuccessful) return@withContext null
+                        val bytes = resp.body?.bytes() ?: return@withContext null
+                        BitmapFactory.decodeStream(ByteArrayInputStream(bytes))
                     }
                 }
                 if (_binding == null) return@launch
