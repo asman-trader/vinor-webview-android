@@ -1,85 +1,328 @@
 package ir.vinor.app
 
+import android.content.Intent
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import ir.vinor.app.databinding.FragmentDashboardBinding
+import ir.vinor.app.databinding.ItemLandCardBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import android.webkit.CookieManager
+import java.io.InputStream
+import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
 /**
- * تب خانه - صفحه اصلی همکاران اکسپرس
- * فقط صفحه /express/partner/dashboard نمایش داده می‌شود
+ * تب وینور (صفحه اصلی) - کاملاً نیتیو.
+ * داده از API /express/partner/dashboard/data با کوکی دریافت می‌شود.
  */
-class DashboardFragment : BaseWebViewFragment() {
-    override val targetUrl: String = "https://vinor.ir/express/partner/dashboard"
-    override val fragmentTag: String = "DashboardFragment"
-    
-    private var lastRefreshTime: Long = 0
-    private val refreshThreshold = 1000 // 1 second - اگر کمتر از 1 ثانیه از آخرین refresh گذشته باشد، refresh نکن
-    
-    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        // اطمینان از اینکه فقط صفحه اصلی همکاران نمایش داده می‌شود
-        // dynamicUrl را null می‌کنیم تا همیشه از targetUrl استفاده شود
-        dynamicUrl = null
+class DashboardFragment : Fragment() {
+
+    private var _binding: FragmentDashboardBinding? = null
+    private val binding get() = _binding!!
+
+    private val job = Job()
+    private val scope = CoroutineScope(Dispatchers.Main + job)
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    companion object {
+        private const val TAG = "DashboardFragment"
+        private const val BASE = "https://vinor.ir"
+        private const val DASHBOARD_DATA = "/express/partner/dashboard/data"
+        private val PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
     }
-    
-    /**
-     * Override برای اطمینان از اینکه URL dashboard تغییر نمی‌کند
-     * همیشه صفحه اصلی همکاران (/express/partner/dashboard) نمایش داده می‌شود
-     */
-    override fun reloadWithUrl(url: String) {
-        val dashboardUrl = "https://vinor.ir/express/partner/dashboard"
-        val currentTime = System.currentTimeMillis()
-        
-        // بررسی اینکه آیا URL همان dashboard است
-        val isDashboardUrl = url.contains("/express/partner/dashboard") || url == dashboardUrl
-        
-        if (isDashboardUrl) {
-            // اگر URL همان dashboard است
-            val currentUrl = getCurrentUrl()
-            val isSameUrl = currentUrl != null && (
-                currentUrl == dashboardUrl || 
-                currentUrl.contains("/express/partner/dashboard")
-            )
-            
-            // اگر URL یکسان است و کمتر از threshold گذشته باشد، refresh نکن (جلوگیری از refresh مکرر)
-            if (isSameUrl && (currentTime - lastRefreshTime) < refreshThreshold) {
-                android.util.Log.d(fragmentTag, "Skipping refresh - too soon after last refresh")
-                return
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentDashboardBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.dashboardSearchBtn.setOnClickListener { performSearch() }
+        binding.dashboardSearch.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                performSearch()
+                true
+            } else false
+        }
+        binding.dashboardTrainingCard.setOnClickListener { openTraining() }
+        binding.dashboardEmptyLogin.setOnClickListener { openLogin() }
+        loadData()
+    }
+
+    override fun onDestroyView() {
+        job.cancel()
+        super.onDestroyView()
+        _binding = null
+    }
+
+    private fun cookieHeader(): String = CookieManager.getInstance().getCookie(BASE) ?: ""
+
+    private fun toPersianDigits(s: String): String {
+        return s.map { c -> if (c in '0'..'9') PERSIAN_DIGITS[c - '0'] else c }.joinToString("")
+    }
+
+    private fun formatToman(value: Int): String {
+        if (value == 0) return "۰"
+        val s = value.toString().reversed().chunked(3).joinToString("،").reversed()
+        return toPersianDigits(s)
+    }
+
+    private fun formatDate(iso: String?): String {
+        if (iso.isNullOrBlank()) return "—"
+        val raw = iso.trim().replace("Z", "")
+        val outFmt = SimpleDateFormat("yyyy/MM/dd", Locale("fa"))
+        val parsers = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US),
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US),
+            SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        )
+        for (parser in parsers) {
+            try {
+                val d = parser.parse(raw.take(19).trim())
+                if (d != null) return outFmt.format(d)
+            } catch (_: Exception) { }
+        }
+        return raw.take(10).replace("-", "/")
+    }
+
+    private fun performSearch() {
+        val q = binding.dashboardSearch.text?.toString()?.trim() ?: ""
+        val url = if (q.isEmpty()) "$BASE/public" else "$BASE/public?q=${Uri.encode(q)}"
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
+
+    private fun openTraining() {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$BASE/express/partner/training")))
+    }
+
+    private fun openLogin() {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$BASE/express/partner/login")))
+    }
+
+    private fun loadData() {
+        binding.dashboardProgress.visibility = View.VISIBLE
+        binding.dashboardStats.visibility = View.GONE
+        binding.dashboardLandList.visibility = View.GONE
+        binding.dashboardEmpty.visibility = View.GONE
+        binding.dashboardPendingAlert.visibility = View.GONE
+        binding.dashboardExpiredAlert.visibility = View.GONE
+
+        scope.launch {
+            try {
+                val req = Request.Builder()
+                    .url("$BASE$DASHBOARD_DATA")
+                    .addHeader("Cookie", cookieHeader())
+                    .addHeader("Accept", "application/json")
+                    .build()
+                val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
+                if (!resp.isSuccessful) {
+                    withContext(Dispatchers.Main) { showError() }
+                    return@launch
+                }
+                val body = resp.body?.string() ?: ""
+                val obj = JSONObject(body)
+                if (!obj.optBoolean("success", false)) {
+                    withContext(Dispatchers.Main) { showError() }
+                    return@launch
+                }
+                val profile = obj.optBoolean("profile", false)
+                val isApproved = obj.optBoolean("is_approved", false)
+                val hasPendingApp = obj.optBoolean("has_pending_app", false)
+                val totalCommission = obj.optInt("total_commission", 0)
+                val pendingCommission = obj.optInt("pending_commission", 0)
+                val soldCount = obj.optInt("sold_count", 0)
+                val expiredCount = obj.optInt("expired_count", 0)
+                val landsArr = obj.optJSONArray("assigned_lands") ?: org.json.JSONArray()
+                val lands = mutableListOf<JSONObject>()
+                for (i in 0 until landsArr.length()) {
+                    lands.add(landsArr.getJSONObject(i))
+                }
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    bind(
+                        profile = profile,
+                        isApproved = isApproved,
+                        hasPendingApp = hasPendingApp,
+                        totalCommission = totalCommission,
+                        pendingCommission = pendingCommission,
+                        soldCount = soldCount,
+                        expiredCount = expiredCount,
+                        lands = lands
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "loadData error", e)
+                withContext(Dispatchers.Main) { showError() }
             }
-            
-            // اگر URL یکسان است اما زمان کافی گذشته، reload کن (refresh)
-            if (isSameUrl) {
-                android.util.Log.d(fragmentTag, "Refreshing dashboard page")
-                lastRefreshTime = currentTime
-                reloadWebView()
-            } else {
-                // اگر URL متفاوت است، load کن
-                android.util.Log.d(fragmentTag, "Loading dashboard: $url -> $dashboardUrl")
-                lastRefreshTime = currentTime
-                super.reloadWithUrl(dashboardUrl)
-            }
-        } else {
-            // اگر URL متفاوت است، به dashboard برگرد
-            android.util.Log.d(fragmentTag, "Redirecting to dashboard: $url -> $dashboardUrl")
-            lastRefreshTime = currentTime
-            super.reloadWithUrl(dashboardUrl)
         }
     }
-    
-    /**
-     * وقتی Fragment دوباره visible می‌شود، اگر در dashboard هستیم، refresh کن
-     */
-    override fun onResume() {
-        super.onResume()
-        // اگر Fragment visible است و در dashboard هستیم، refresh کن
-        if (isVisible) {
-            val currentUrl = getCurrentUrl()
-            if (currentUrl != null && currentUrl.contains("/express/partner/dashboard")) {
-                val currentTime = System.currentTimeMillis()
-                // فقط اگر بیش از threshold گذشته باشد، refresh کن
-                if ((currentTime - lastRefreshTime) >= refreshThreshold) {
-                    android.util.Log.d(fragmentTag, "Fragment resumed - refreshing dashboard")
-                    lastRefreshTime = currentTime
-                    reloadWebView() // reloadWebView خودش بررسی می‌کند که webView initialized است یا نه
+
+    private fun showError() {
+        if (_binding == null) return
+        binding.dashboardProgress.visibility = View.GONE
+        context?.let { Toast.makeText(it, "خطا در بارگذاری داشبورد", Toast.LENGTH_SHORT).show() }
+        binding.dashboardStats.visibility = View.GONE
+        binding.dashboardLandList.visibility = View.GONE
+        binding.dashboardEmpty.visibility = View.VISIBLE
+        binding.dashboardEmptyLogin.visibility = View.VISIBLE
+    }
+
+    private fun bind(
+        profile: Boolean,
+        isApproved: Boolean,
+        hasPendingApp: Boolean,
+        totalCommission: Int,
+        pendingCommission: Int,
+        soldCount: Int,
+        expiredCount: Int,
+        lands: List<JSONObject>
+    ) {
+        if (_binding == null) return
+        binding.dashboardProgress.visibility = View.GONE
+        binding.dashboardStats.visibility = View.VISIBLE
+
+        binding.dashboardTotalCommission.text = formatToman(totalCommission)
+        binding.dashboardPendingCommission.text = formatToman(pendingCommission)
+        binding.dashboardSoldCount.text = toPersianDigits(soldCount.toString())
+
+        binding.dashboardPendingAlert.visibility =
+            if (hasPendingApp && !isApproved) View.VISIBLE else View.GONE
+        binding.dashboardExpiredAlert.visibility =
+            if (expiredCount > 0) View.VISIBLE else View.GONE
+        if (expiredCount > 0) {
+            binding.dashboardExpiredText.text =
+                if (expiredCount == 1) "اعتبار یک فایل به پایان رسیده."
+                else "اعتبار ${toPersianDigits(expiredCount.toString())} فایل به پایان رسیده."
+        }
+
+        binding.dashboardEmptyLogin.visibility = if (profile) View.GONE else View.VISIBLE
+
+        val list = binding.dashboardLandList
+        list.removeAllViews()
+
+        if (lands.isEmpty()) {
+            list.visibility = View.GONE
+            binding.dashboardEmpty.visibility = View.VISIBLE
+            return
+        }
+        list.visibility = View.VISIBLE
+        binding.dashboardEmpty.visibility = View.GONE
+
+        for (i in lands.indices) {
+            val land = lands[i]
+            val itemBinding = ItemLandCardBinding.inflate(layoutInflater, list, false)
+            itemBinding.landCardTitle.text = land.optString("title", "—")
+            val price = land.optInt("price_total", 0)
+            itemBinding.landCardPrice.text = formatToman(price) + " تومان"
+            val commissionAmount = land.optInt("commission_amount", 0)
+            val commissionPct = land.optDouble("commission_pct", 0.0)
+            if (commissionAmount > 0 || commissionPct > 0) {
+                itemBinding.landCardCommission.visibility = View.VISIBLE
+                itemBinding.landCardCommission.text =
+                    "پورسانت: " + formatToman(commissionAmount) + " تومان" +
+                        (if (commissionPct > 0) " (${commissionPct.toLong()}%)" else "")
+            } else {
+                itemBinding.landCardCommission.visibility = View.GONE
+            }
+            val metaParts = listOfNotNull(
+                land.optString("size").takeIf { it.isNotBlank() }?.let { "$it متر" },
+                land.optString("location").takeIf { it.isNotBlank() },
+                land.optString("city").takeIf { it.isNotBlank() },
+                land.optString("category").takeIf { it.isNotBlank() }
+            )
+            itemBinding.landCardMeta.text = metaParts.joinToString(" • ").ifBlank { "—" }
+            itemBinding.landCardDate.text = formatDate(land.optString("created_at"))
+
+            val status = land.optString("assignment_status", "active").trim()
+            val isExpired = land.optBoolean("is_expired", false)
+            itemBinding.landCardStatusChip.text = when {
+                isExpired -> "منقضی"
+                status == "sold" -> "فروخته شد"
+                else -> "فعال"
+            }
+            when {
+                isExpired -> {
+                    itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_calendar_done2)
+                    itemBinding.landCardStatusChip.setTextColor(0xFF9CA3AF.toInt())
                 }
+                status == "sold" -> {
+                    itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_routine_chip_emerald)
+                    itemBinding.landCardStatusChip.setTextColor(0xFF4ADE80.toInt())
+                }
+                else -> {
+                    itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_routine_chip_blue)
+                    itemBinding.landCardStatusChip.setTextColor(0xFF93C5FD.toInt())
+                }
+            }
+
+            val imageUrl = land.optString("image_url").takeIf { it.isNotBlank() }
+            if (!imageUrl.isNullOrBlank()) {
+                val fullUrl = if (imageUrl.startsWith("http")) imageUrl else "$BASE$imageUrl"
+                loadLandImage(fullUrl, itemBinding.landCardImage, itemBinding.landCardImagePlaceholder)
+            } else {
+                itemBinding.landCardImage.visibility = View.GONE
+                itemBinding.landCardImagePlaceholder.visibility = View.VISIBLE
+            }
+
+            val detailUrl = land.optString("detail_url").takeIf { it.isNotBlank() }
+            itemBinding.root.setOnClickListener {
+                if (!detailUrl.isNullOrBlank()) {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(detailUrl)))
+                }
+            }
+            list.addView(itemBinding.root)
+        }
+    }
+
+    private fun loadLandImage(url: String, imageView: ImageView, placeholder: TextView) {
+        scope.launch {
+            try {
+                val bitmap = withContext(Dispatchers.IO) {
+                    (URL(url).openConnection().getInputStream() as? InputStream)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    }
+                }
+                if (_binding == null) return@launch
+                if (bitmap != null) {
+                    imageView.setImageBitmap(bitmap)
+                    imageView.visibility = View.VISIBLE
+                    placeholder.visibility = View.GONE
+                } else {
+                    imageView.visibility = View.GONE
+                    placeholder.visibility = View.VISIBLE
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "loadLandImage failed: $url", e)
+                if (_binding == null) return@launch
+                imageView.visibility = View.GONE
+                placeholder.visibility = View.VISIBLE
             }
         }
     }
 }
-

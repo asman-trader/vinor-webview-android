@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/vinor_bg_dark"
+    android:layoutDirection="rtl">
+
+    <!-- نوار جستجو -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:background="@color/vinor_bg_dark">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_routine_card"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp">
+            <EditText
+                android:id="@+id/dashboardSearch"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="جستجو در فایل‌ها..."
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:textColor="#F9FAFB"
+                android:textColorHint="#6B7280"
+                android:textSize="14sp" />
+            <ImageButton
+                android:id="@+id/dashboardSearchBtn"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="جستجو"
+                android:src="@drawable/ic_search"
+                app:tint="#9CA3AF" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="24dp">
+
+            <!-- کارت آموزش -->
+            <FrameLayout
+                android:id="@+id/dashboardTrainingCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_routine_card"
+                android:padding="14dp"
+                android:clickable="true"
+                android:focusable="true">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <FrameLayout
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="@drawable/bg_routine_chip_emerald">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="📚"
+                            android:textSize="18sp" />
+                    </FrameLayout>
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:text="آموزش ۳ مرحله‌ای موفقیت در همکاری"
+                        android:textColor="#F9FAFB"
+                        android:textSize="13sp" />
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_chevron_left"
+                        app:tint="#9CA3AF"
+                        android:contentDescription="" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- هشدار در حال بررسی -->
+            <FrameLayout
+                android:id="@+id/dashboardPendingAlert"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:visibility="gone"
+                android:background="@drawable/bg_routine_chip_amber"
+                android:padding="12dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="درخواست همکاری شما در حال بررسی است."
+                    android:textColor="#F9FAFB"
+                    android:textSize="12sp" />
+            </FrameLayout>
+
+            <!-- هشدار منقضی -->
+            <FrameLayout
+                android:id="@+id/dashboardExpiredAlert"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:visibility="gone"
+                android:padding="12dp"
+                android:background="@drawable/bg_calendar_done2">
+                <TextView
+                    android:id="@+id/dashboardExpiredText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="اعتبار برخی فایل‌ها به پایان رسیده."
+                    android:textColor="#F9FAFB"
+                    android:textSize="12sp" />
+            </FrameLayout>
+
+            <ProgressBar
+                android:id="@+id/dashboardProgress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="16dp"
+                android:visibility="gone" />
+
+            <!-- آمار -->
+            <LinearLayout
+                android:id="@+id/dashboardStats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_routine_card"
+                    android:padding="12dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="کل درآمد"
+                        android:textColor="#9CA3AF"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/dashboardTotalCommission"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="۰"
+                        android:textColor="#4ADE80"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </FrameLayout>
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="3dp"
+                    android:background="@drawable/bg_routine_card"
+                    android:padding="12dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="در انتظار"
+                        android:textColor="#9CA3AF"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/dashboardPendingCommission"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="۰"
+                        android:textColor="#FCD34D"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </FrameLayout>
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_routine_card"
+                    android:padding="12dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="فروش تاییدشده"
+                        android:textColor="#9CA3AF"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/dashboardSoldCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="۰"
+                        android:textColor="#93C5FD"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- لیست فایل‌ها -->
+            <LinearLayout
+                android:id="@+id/dashboardLandList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- حالت خالی -->
+            <FrameLayout
+                android:id="@+id/dashboardEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:background="@drawable/bg_routine_card"
+                android:padding="32dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="هنوز فایلی برای شما ارسال نشده"
+                        android:textColor="#F9FAFB"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="پس از ارسال فایل‌ها توسط ادمین، در اینجا نمایش داده می‌شوند."
+                        android:textColor="#9CA3AF"
+                        android:textSize="12sp"
+                        android:gravity="center" />
+                    <TextView
+                        android:id="@+id/dashboardEmptyLogin"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/bg_button_primary"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingHorizontal="20dp"
+                        android:paddingVertical="10dp"
+                        android:text="ورود"
+                        android:textColor="#F9FAFB"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
