@@ -86,7 +86,20 @@ class DashboardFragment : Fragment() {
         _binding = null
     }
 
-    private fun cookieHeader(): String = CookieManager.getInstance().getCookie(BASE) ?: ""
+    private fun cookieHeader(): String {
+        val cm = CookieManager.getInstance()
+        // سعی می‌کنیم مثل وب، کوکی‌های مسیر /express/partner را هم بگیریم
+        val candidates = listOf(
+            "$BASE/express/partner/dashboard",
+            "$BASE/express/partner/",
+            BASE
+        )
+        for (u in candidates) {
+            val c = cm.getCookie(u)
+            if (!c.isNullOrBlank()) return c
+        }
+        return cm.getCookie(BASE) ?: ""
+    }
 
     private fun toPersianDigits(s: String): String {
         return s.map { c -> if (c in '0'..'9') PERSIAN_DIGITS[c - '0'] else c }.joinToString("")
