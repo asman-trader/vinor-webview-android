@@ -74,6 +74,12 @@ class DashboardFragment : Fragment() {
         loadData()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // هر بار بازگشت به تب وینور، داده‌ها را تازه می‌کنیم
+        loadData()
+    }
+
     override fun onDestroyView() {
         job.cancel()
         super.onDestroyView()
@@ -302,7 +308,7 @@ class DashboardFragment : Fragment() {
                     itemBinding.landCardImage.visibility = View.GONE
                     itemBinding.landCardImagePlaceholder.visibility = View.VISIBLE
                     loadLandImage(fullUrl, itemBinding.landCardImage, itemBinding.landCardImagePlaceholder)
-                } else {
+            } else {
                     itemBinding.landCardImage.visibility = View.GONE
                     itemBinding.landCardImagePlaceholder.visibility = View.VISIBLE
                 }
