@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/vinor_bg_dark"
+    android:layoutDirection="rtl">
+
+    <!-- نوار بالا -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp">
+
+        <ImageButton
+            android:id="@+id/notesBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="بازگشت"
+            android:src="@drawable/ic_chevron_right"
+            android:tint="#9CA3AF" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="یادداشت‌های من"
+            android:textColor="#F9FAFB"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="40dp"
+            android:layout_height="40dp" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/notesProgress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="16dp">
+
+            <!-- حالت خالی -->
+            <FrameLayout
+                android:id="@+id/notesEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:background="@drawable/bg_routine_card"
+                android:padding="24dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="یادداشتی ثبت نشده است."
+                        android:textColor="#F9FAFB"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- لیست یادداشت‌ها -->
+            <LinearLayout
+                android:id="@+id/notesList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- فرم افزودن یادداشت -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/vinor_bg_dark"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/notesInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_routine_card"
+                android:hint="یادداشت جدید..."
+                android:maxLines="4"
+                android:minLines="1"
+                android:padding="10dp"
+                android:textColor="#F9FAFB"
+                android:textColorHint="#6B7280"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/notesAdd"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_button_primary"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="10dp"
+                android:text="افزودن"
+                android:textColor="#F9FAFB"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+</LinearLayout>
+

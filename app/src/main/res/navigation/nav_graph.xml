@@ -42,6 +42,18 @@
         android:label="ویرایش پروفایل"
         tools:layout="@layout/fragment_profile_edit" />
 
+    <fragment
+        android:id="@+id/notificationsFragment"
+        android:name="ir.vinor.app.NotificationsFragment"
+        android:label="اعلان‌ها"
+        tools:layout="@layout/fragment_notifications" />
+
+    <fragment
+        android:id="@+id/notesFragment"
+        android:name="ir.vinor.app.NotesFragment"
+        android:label="یادداشت‌ها"
+        tools:layout="@layout/fragment_notes" />
+
     <!-- نگه‌داری برای سازگاری با مسیرهای قدیمی (در منو نمایش داده نمی‌شوند) -->
     <fragment
         android:id="@+id/expressFragment"

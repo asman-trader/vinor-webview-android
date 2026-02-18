@@ -174,14 +174,20 @@ class ProfileFragment : Fragment() {
             }
         }
         binding.profileLogout.setOnClickListener { doLogout() }
-        binding.profileNotifications.setOnClickListener { openUrl("$BASE/express/partner/notifications") }
+        binding.profileNotifications.setOnClickListener {
+            try {
+                findNavController().navigate(R.id.notificationsFragment)
+            } catch (_: Exception) {
+                openUrl("$BASE/express/partner/notifications")
+            }
+        }
 
         binding.profileLinks.removeAllViews()
         val links = mutableListOf<Triple<String, String, String>>()
         if (!isApproved) {
             links.add(Triple("درخواست همکاری", "برای تبدیل به همکار اکسپرس درخواست دهید", "$BASE/express/partner/apply/step1"))
         }
-        links.add(Triple("یادداشت‌ها", "یادداشت‌های خصوصی", "$BASE/express/partner/notes"))
+        links.add(Triple("یادداشت‌ها", "یادداشت‌های خصوصی", "notes_native"))
         val appUpdateSub = when {
             androidApkUrl.isNotEmpty() && androidApkVersion.isNotEmpty() -> "نسخه جدید برای دانلود آماده است"
             androidApkVersion.isNotEmpty() -> "آخرین نسخه: $androidApkVersion"
@@ -212,6 +218,13 @@ class ProfileFragment : Fragment() {
                     "restart_tour" -> {
                         context?.getSharedPreferences("vinor", 0)?.edit()?.putBoolean("restart_tour", true)?.apply()
                         context?.let { Toast.makeText(it, "برای اجرای تور به تب وینور بروید", Toast.LENGTH_SHORT).show() }
+                    }
+                    "notes_native" -> {
+                        try {
+                            findNavController().navigate(R.id.notesFragment)
+                        } catch (_: Exception) {
+                            openUrl("$BASE/express/partner/notes")
+                        }
                     }
                     "" -> { }
                     else -> openUrl(url)
