@@ -133,7 +133,13 @@ class ProfileFragment : Fragment() {
         binding.profileCard.visibility = View.GONE
         binding.profileLinks.visibility = View.GONE
         binding.profileNotifications.visibility = View.GONE
-        binding.profileGuestLogin.setOnClickListener { openUrl("$BASE/express/partner/login?next=$BASE/express/partner/profile") }
+        binding.profileGuestLogin.setOnClickListener {
+            try {
+                findNavController().navigate(R.id.action_profile_to_login)
+            } catch (_: Exception) {
+                openUrl("$BASE/express/partner/login?next=$BASE/express/partner/profile")
+            }
+        }
         binding.profileGuestApply.setOnClickListener { openUrl("$BASE/express/partner/apply/step1") }
     }
 
@@ -267,6 +273,9 @@ class ProfileFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     if (_binding == null) return@withContext
                     if (resp.isSuccessful) {
+                        android.webkit.CookieManager.getInstance().removeAllCookies {
+                            android.webkit.CookieManager.getInstance().flush()
+                        }
                         context?.let { Toast.makeText(it, "از حساب خارج شدید.", Toast.LENGTH_SHORT).show() }
                         loadData()
                     } else {

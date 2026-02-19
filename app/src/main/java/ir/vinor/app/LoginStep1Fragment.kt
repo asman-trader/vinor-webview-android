@@ -1,0 +1,138 @@
+package ir.vinor.app
+
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import ir.vinor.app.databinding.FragmentLoginStep1Binding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import android.webkit.CookieManager
+import java.util.concurrent.TimeUnit
+
+/**
+ * ورود نیتیو - مرحله ۱: وارد کردن شماره موبایل و دریافت کد OTP.
+ */
+class LoginStep1Fragment : Fragment() {
+
+    private var _binding: FragmentLoginStep1Binding? = null
+    private val binding get() = _binding!!
+
+    private val job = Job()
+    private val scope = CoroutineScope(Dispatchers.Main + job)
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    companion object {
+        private const val TAG = "LoginStep1"
+        private const val BASE = "https://vinor.ir"
+        private const val API_LOGIN_REQUEST = "/express/partner/api/login-request"
+    }
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        _binding = FragmentLoginStep1Binding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.loginStep1Back.setOnClickListener { findNavController().navigateUp() }
+        binding.loginStep1Submit.setOnClickListener { submitPhone() }
+    }
+
+    override fun onDestroyView() {
+        job.cancel()
+        super.onDestroyView()
+        _binding = null
+    }
+
+    private fun normalizePhone(input: String): String {
+        val digits = input.filter { it.isDigit() }
+        return when {
+            digits.length >= 11 && digits.startsWith("98") -> "0" + digits.drop(2).take(11)
+            digits.length >= 11 && digits.startsWith("0098") -> "0" + digits.drop(4).take(11)
+            digits.length == 11 && digits.startsWith("0") -> digits
+            digits.length == 10 -> "0$digits"
+            else -> digits.take(11)
+        }
+    }
+
+    private fun submitPhone() {
+        val raw = binding.loginStep1Phone.text?.toString()?.trim() ?: ""
+        val phone = normalizePhone(raw)
+        binding.loginStep1Error.visibility = View.GONE
+        if (phone.length != 11 || !phone.startsWith("09")) {
+            binding.loginStep1Error.text = "شماره موبایل معتبر (۰۹xxxxxxxxx) وارد کنید."
+            binding.loginStep1Error.visibility = View.VISIBLE
+            return
+        }
+
+        binding.loginStep1Progress.visibility = View.VISIBLE
+        binding.loginStep1Submit.isEnabled = false
+
+        scope.launch {
+            try {
+                val json = JSONObject().put("phone", phone).toString()
+                val req = Request.Builder()
+                    .url("$BASE$API_LOGIN_REQUEST")
+                    .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                    .addHeader("Accept", "application/json")
+                    .build()
+                val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
+                saveCookiesFromResponse(resp)
+                val body = resp.body?.string() ?: ""
+                val obj = try { JSONObject(body) } catch (_: Exception) { null }
+                val success = obj?.optBoolean("success", false) == true
+
+                withContext(Dispatchers.Main) {
+                    binding.loginStep1Progress.visibility = View.GONE
+                    binding.loginStep1Submit.isEnabled = true
+                    if (_binding == null) return@withContext
+                    if (success) {
+                        Toast.makeText(requireContext(), "کد تأیید ارسال شد.", Toast.LENGTH_SHORT).show()
+                        findNavController().navigate(
+                            R.id.loginStep2Fragment,
+                            android.os.Bundle().apply { putString("phone", phone) }
+                        )
+                    } else {
+                        binding.loginStep1Error.text = obj?.optString("error", "خطا در ارسال کد.")
+                        binding.loginStep1Error.visibility = View.VISIBLE
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "login-request error", e)
+                withContext(Dispatchers.Main) {
+                    binding.loginStep1Progress.visibility = View.GONE
+                    binding.loginStep1Submit.isEnabled = true
+                    if (_binding != null) {
+                        binding.loginStep1Error.text = "خطا در ارتباط. دوباره تلاش کنید."
+                        binding.loginStep1Error.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
+    }
+
+    private fun saveCookiesFromResponse(resp: okhttp3.Response) {
+        try {
+            resp.headers("Set-Cookie").forEach { value ->
+                CookieManager.getInstance().setCookie(BASE, value)
+            }
+            CookieManager.getInstance().flush()
+        } catch (_: Exception) { }
+    }
+}

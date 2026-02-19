@@ -34,6 +34,34 @@
             app:destination="@id/profileEditFragment"
             app:popUpTo="@id/profileFragment"
             app:popUpToInclusive="false" />
+        <action
+            android:id="@+id/action_profile_to_login"
+            app:destination="@id/loginStep1Fragment"
+            app:popUpTo="@id/profileFragment"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/loginStep1Fragment"
+        android:name="ir.vinor.app.LoginStep1Fragment"
+        android:label="ورود"
+        tools:layout="@layout/fragment_login_step1">
+        <action
+            android:id="@+id/action_loginStep1_to_loginStep2"
+            app:destination="@id/loginStep2Fragment"
+            app:popUpTo="@id/loginStep1Fragment"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/loginStep2Fragment"
+        android:name="ir.vinor.app.LoginStep2Fragment"
+        android:label="کد تأیید"
+        tools:layout="@layout/fragment_login_step2">
+        <argument
+            android:name="phone"
+            app:argType="string"
+            android:defaultValue="" />
     </fragment>
 
     <fragment

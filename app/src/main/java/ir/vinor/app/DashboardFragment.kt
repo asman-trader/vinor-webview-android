@@ -12,6 +12,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import ir.vinor.app.databinding.FragmentDashboardBinding
 import ir.vinor.app.databinding.ItemLandCardBinding
 import kotlinx.coroutines.CoroutineScope
@@ -132,7 +133,11 @@ class DashboardFragment : Fragment() {
     }
 
     private fun openLogin() {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$BASE/express/partner/login")))
+        try {
+            findNavController().navigate(R.id.loginStep1Fragment)
+        } catch (_: Exception) {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$BASE/express/partner/login")))
+        }
     }
 
     private fun loadData() {
