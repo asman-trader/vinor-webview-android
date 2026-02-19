@@ -186,16 +186,25 @@ class DashboardFragment : Fragment() {
                 val soldCount = obj.optInt("sold_count", 0)
                 val expiredCount = obj.optInt("expired_count", 0)
                 val landsArr = obj.optJSONArray("assigned_lands") ?: org.json.JSONArray()
-                val lands = mutableListOf<JSONObject>()
+                val assigned = mutableListOf<JSONObject>()
                 for (i in 0 until landsArr.length()) {
                     try {
                         val item = landsArr.optJSONObject(i) ?: continue
-                        lands.add(item)
+                        assigned.add(item)
                     } catch (e: Exception) {
                         Log.w(TAG, "skip land item $i", e)
                     }
                 }
-                Log.d(TAG, "dashboard/data lands=${lands.size}")
+                // برای مهمان: اگر فایل ارسالی نداشتیم، از لیست عمومی فایل‌ها استفاده می‌کنیم
+                val publicArr = obj.optJSONArray("public_lands") ?: org.json.JSONArray()
+                val publicLands = mutableListOf<JSONObject>()
+                for (i in 0 until publicArr.length()) {
+                    try {
+                        publicArr.optJSONObject(i)?.let { publicLands.add(it) }
+                    } catch (_: Exception) { }
+                }
+                val lands = if (assigned.isNotEmpty()) assigned else publicLands
+                Log.d(TAG, "dashboard/data assigned=${assigned.size} public=${publicLands.size} show=${lands.size}")
                 withContext(Dispatchers.Main) {
                     if (_binding == null) return@withContext
                     bind(
@@ -206,7 +215,8 @@ class DashboardFragment : Fragment() {
                         pendingCommission = pendingCommission,
                         soldCount = soldCount,
                         expiredCount = expiredCount,
-                        lands = lands
+                        lands = lands,
+                        isPublicList = assigned.isEmpty() && publicLands.isNotEmpty()
                     )
                 }
             } catch (e: Exception) {
@@ -234,7 +244,8 @@ class DashboardFragment : Fragment() {
         pendingCommission: Int,
         soldCount: Int,
         expiredCount: Int,
-        lands: List<JSONObject>
+        lands: List<JSONObject>,
+        isPublicList: Boolean = false
     ) {
         if (_binding == null) return
         binding.dashboardProgress.visibility = View.GONE
@@ -266,6 +277,8 @@ class DashboardFragment : Fragment() {
         }
         list.visibility = View.VISIBLE
         binding.dashboardEmpty.visibility = View.GONE
+        // وقتی لیست عمومی است، باکس آمار را مخفی می‌کنیم (برای مهمان معنا ندارد)
+        binding.dashboardStats.visibility = if (isPublicList) View.GONE else View.VISIBLE
 
         for (i in lands.indices) {
             try {
@@ -296,11 +309,16 @@ class DashboardFragment : Fragment() {
                 val status = land.optString("assignment_status", "active").trim()
                 val isExpired = land.optBoolean("is_expired", false)
                 itemBinding.landCardStatusChip.text = when {
+                    isPublicList -> "فایل عمومی"
                     isExpired -> "منقضی"
                     status == "sold" -> "فروخته شد"
                     else -> "فعال"
                 }
                 when {
+                    isPublicList -> {
+                        itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_routine_chip)
+                        itemBinding.landCardStatusChip.setTextColor(0xFF9CA3AF.toInt())
+                    }
                     isExpired -> {
                         itemBinding.landCardStatusChip.setBackgroundResource(R.drawable.bg_calendar_done2)
                         itemBinding.landCardStatusChip.setTextColor(0xFF9CA3AF.toInt())
