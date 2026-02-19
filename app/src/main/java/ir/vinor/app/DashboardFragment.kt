@@ -43,6 +43,8 @@ class DashboardFragment : Fragment() {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+    /** کلاینت بدون دنبال کردن ریدایرکت تا در صورت 302 به لاگین، پاسخ HTML پارس نشود. */
+    private val noRedirectClient = client.newBuilder().followRedirects(false).build()
 
     companion object {
         private const val TAG = "DashboardFragment"
@@ -50,6 +52,7 @@ class DashboardFragment : Fragment() {
         private const val DASHBOARD_DATA = "/express/partner/dashboard/data"
         private const val PUBLIC_LANDS = "/express/partner/api/public-lands"
         private val PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
+        private const val USER_AGENT = "VinorApp/1.0 (Android)"
     }
 
     override fun onCreateView(
@@ -142,8 +145,10 @@ class DashboardFragment : Fragment() {
 
         scope.launch {
             try {
+                // کوکی را روی Main بخوان (CookieManager ممکن است به context اصلی وابسته باشد)
+                val cookie = cookieHeader()
                 // اول تلاش برای داشبورد کامل (با یا بدون لاگین)
-                val mainResult = withContext(Dispatchers.IO) { fetchDashboardData() }
+                val mainResult = withContext(Dispatchers.IO) { fetchDashboardData(cookie) }
                 if (mainResult != null) {
                     withContext(Dispatchers.Main) {
                         if (_binding == null) return@withContext
@@ -188,17 +193,25 @@ class DashboardFragment : Fragment() {
 
     /**
      * دریافت داده داشبورد. در صورت موفقیت یک lambda برای bind روی Main برمی‌گرداند، وگرنه null.
+     * @param cookie مقدار کوکی که روی Main thread خوانده شده (برای هماهنگی با WebView).
      */
-    private fun fetchDashboardData(): (() -> Unit)? {
+    private fun fetchDashboardData(cookie: String): (() -> Unit)? {
         return try {
             val req = Request.Builder()
                 .url("$BASE$DASHBOARD_DATA")
-                .addHeader("Cookie", cookieHeader())
+                .addHeader("Cookie", cookie)
                 .addHeader("Accept", "application/json")
+                .addHeader("User-Agent", USER_AGENT)
                 .build()
-            val resp = client.newCall(req).execute()
+            // بدون followRedirect تا در صورت 302 به لاگین، بدنِ HTML پارس نشود
+            val resp = noRedirectClient.newCall(req).execute()
             if (!resp.isSuccessful) {
                 Log.w(TAG, "dashboard/data not successful: ${resp.code}")
+                return null
+            }
+            val contentType = resp.header("Content-Type") ?: ""
+            if (!contentType.contains("application/json")) {
+                Log.w(TAG, "dashboard/data not JSON content-type: $contentType")
                 return null
             }
             val body = resp.body?.string() ?: ""
@@ -266,9 +279,18 @@ class DashboardFragment : Fragment() {
             val req = Request.Builder()
                 .url("$BASE$PUBLIC_LANDS")
                 .addHeader("Accept", "application/json")
+                .addHeader("User-Agent", USER_AGENT)
                 .build()
             val resp = client.newCall(req).execute()
-            if (!resp.isSuccessful) return null
+            if (!resp.isSuccessful) {
+                Log.w(TAG, "public-lands not successful: ${resp.code}")
+                return null
+            }
+            val contentType = resp.header("Content-Type") ?: ""
+            if (!contentType.contains("application/json")) {
+                Log.w(TAG, "public-lands not JSON content-type: $contentType")
+                return null
+            }
             val body = resp.body?.string() ?: ""
             if (body.isBlank()) return null
             val obj = try { JSONObject(body) } catch (_: Exception) { return null }
@@ -430,6 +452,7 @@ class DashboardFragment : Fragment() {
                 Log.e(TAG, "bind land card $i failed", e)
             }
         }
+        list.requestLayout()
     }
 
     private fun loadLandImage(url: String, imageView: ImageView, placeholder: TextView) {
