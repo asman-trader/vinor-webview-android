@@ -414,7 +414,7 @@ class DashboardFragment : Fragment() {
                     itemBinding.landCardImage.visibility = View.GONE
                     itemBinding.landCardImagePlaceholder.visibility = View.VISIBLE
                     loadLandImage(fullUrl, itemBinding.landCardImage, itemBinding.landCardImagePlaceholder)
-            } else {
+                } else {
                     itemBinding.landCardImage.visibility = View.GONE
                     itemBinding.landCardImagePlaceholder.visibility = View.VISIBLE
                 }
