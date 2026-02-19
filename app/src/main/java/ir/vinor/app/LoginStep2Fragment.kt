@@ -21,6 +21,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import android.webkit.CookieManager
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.delay
 
 /**
  * ورود نیتیو - مرحله ۲: وارد کردن کد OTP و تأیید.
@@ -51,12 +52,23 @@ class LoginStep2Fragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val phone = arguments?.getString("phone") ?: ""
+        val phone = arguments?.getString("phone")?.trim() ?: ""
+        if (phone.length != 11 || !phone.startsWith("09")) {
+            findNavController().navigateUp()
+            return
+        }
         binding.loginStep2PhoneLabel.text = "کد ارسال‌شده به $phone را وارد کنید."
 
         binding.loginStep2Back.setOnClickListener { findNavController().navigateUp() }
         binding.loginStep2Submit.setOnClickListener { submitCode(phone) }
         binding.loginStep2Resend.setOnClickListener { resendCode(phone) }
+        binding.loginStep2Code.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE ||
+                actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO) {
+                submitCode(phone)
+                true
+            } else false
+        }
     }
 
     override fun onDestroyView() {
@@ -99,12 +111,15 @@ class LoginStep2Fragment : Fragment() {
                     binding.loginStep2Submit.isEnabled = true
                     if (_binding == null) return@withContext
                     if (success) {
-                        Toast.makeText(requireContext(), "ورود با موفقیت انجام شد.", Toast.LENGTH_SHORT).show()
+                        if (isAdded) Toast.makeText(requireContext(), "ورود با موفقیت انجام شد.", Toast.LENGTH_SHORT).show()
                         val nav = findNavController()
-                        if (nav.currentBackStackEntry?.destination?.id == R.id.loginStep2Fragment) {
+                        try {
+                            nav.popBackStack(R.id.loginStep2Fragment, true)
+                            nav.popBackStack(R.id.loginStep1Fragment, true)
+                        } catch (_: Exception) {
+                            nav.popBackStack()
                             nav.popBackStack()
                         }
-                        nav.popBackStack()
                     } else {
                         binding.loginStep2Error.text = obj?.optString("error", "کد نادرست است.")
                         binding.loginStep2Error.visibility = View.VISIBLE
@@ -124,8 +139,20 @@ class LoginStep2Fragment : Fragment() {
         }
     }
 
+    private var resendCooldownUntil = 0L
     private fun resendCode(phone: String) {
+        if (phone.length != 11) return
+        val now = System.currentTimeMillis()
+        if (now < resendCooldownUntil) {
+            val sec = ((resendCooldownUntil - now) / 1000).toInt()
+            if (_binding != null && isAdded) {
+                Toast.makeText(requireContext(), "لطفاً ${sec} ثانیه صبر کنید.", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
         binding.loginStep2Error.visibility = View.GONE
+        binding.loginStep2Resend.isEnabled = false
+        resendCooldownUntil = now + 60_000
         scope.launch {
             try {
                 val json = JSONObject().put("phone", phone).toString()
@@ -140,11 +167,19 @@ class LoginStep2Fragment : Fragment() {
                 val body = resp.body?.string() ?: ""
                 val success = (try { JSONObject(body) } catch (_: Exception) { null })?.optBoolean("success", false) == true
                 withContext(Dispatchers.Main) {
-                    if (_binding != null) {
+                    if (_binding != null && isAdded) {
                         Toast.makeText(requireContext(), if (success) "کد مجدد ارسال شد." else "خطا در ارسال مجدد.", Toast.LENGTH_SHORT).show()
                     }
                 }
-            } catch (_: Exception) { }
+                delay(60_000)
+                withContext(Dispatchers.Main) {
+                    if (_binding != null) binding.loginStep2Resend.isEnabled = true
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    if (_binding != null) binding.loginStep2Resend.isEnabled = true
+                }
+            }
         }
     }
 

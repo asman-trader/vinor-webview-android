@@ -52,6 +52,13 @@ class LoginStep1Fragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.loginStep1Back.setOnClickListener { findNavController().navigateUp() }
         binding.loginStep1Submit.setOnClickListener { submitPhone() }
+        binding.loginStep1Phone.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_NEXT ||
+                actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+                submitPhone()
+                true
+            } else false
+        }
     }
 
     override fun onDestroyView() {
@@ -63,10 +70,10 @@ class LoginStep1Fragment : Fragment() {
     private fun normalizePhone(input: String): String {
         val digits = input.filter { it.isDigit() }
         return when {
-            digits.length >= 11 && digits.startsWith("98") -> "0" + digits.drop(2).take(11)
-            digits.length >= 11 && digits.startsWith("0098") -> "0" + digits.drop(4).take(11)
+            digits.startsWith("0098") && digits.length >= 13 -> "0" + digits.drop(4).take(9)
+            digits.startsWith("98") && digits.length >= 11 -> "0" + digits.drop(2).take(9)
             digits.length == 11 && digits.startsWith("0") -> digits
-            digits.length == 10 -> "0$digits"
+            digits.length == 10 && digits.startsWith("9") -> "0$digits"
             else -> digits.take(11)
         }
     }
@@ -103,7 +110,7 @@ class LoginStep1Fragment : Fragment() {
                     binding.loginStep1Submit.isEnabled = true
                     if (_binding == null) return@withContext
                     if (success) {
-                        Toast.makeText(requireContext(), "کد تأیید ارسال شد.", Toast.LENGTH_SHORT).show()
+                        if (isAdded) Toast.makeText(requireContext(), "کد تأیید ارسال شد.", Toast.LENGTH_SHORT).show()
                         findNavController().navigate(
                             R.id.loginStep2Fragment,
                             android.os.Bundle().apply { putString("phone", phone) }

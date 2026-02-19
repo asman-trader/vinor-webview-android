@@ -51,6 +51,7 @@
                 android:background="@null"
                 android:hint="۰۹۱۲۳۴۵۶۷۸۹"
                 android:inputType="phone"
+                android:imeOptions="actionNext"
                 android:maxLength="11"
                 android:textColor="#F9FAFB"
                 android:textColorHint="#6B7280"
