@@ -250,7 +250,7 @@ class DashboardFragment : Fragment() {
             val lands = if (assigned.isNotEmpty()) assigned else publicLands
             val isPublicList = assigned.isEmpty() && publicLands.isNotEmpty()
             Log.d(TAG, "dashboard/data assigned=${assigned.size} public=${publicLands.size} show=${lands.size}")
-            {
+            return {
                 binding.dashboardProgress.visibility = View.GONE
                 bind(
                     profile = profile,
@@ -293,7 +293,7 @@ class DashboardFragment : Fragment() {
                 } catch (_: Exception) { }
             }
             Log.d(TAG, "public-lands count=${publicLands.size}")
-            {
+            return {
                 binding.dashboardProgress.visibility = View.GONE
                 bind(
                     profile = false,
