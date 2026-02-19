@@ -48,6 +48,7 @@ class DashboardFragment : Fragment() {
         private const val TAG = "DashboardFragment"
         private const val BASE = "https://vinor.ir"
         private const val DASHBOARD_DATA = "/express/partner/dashboard/data"
+        private const val PUBLIC_LANDS = "/express/partner/api/public-lands"
         private val PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
     }
 
@@ -153,76 +154,162 @@ class DashboardFragment : Fragment() {
 
         scope.launch {
             try {
-                val req = Request.Builder()
-                    .url("$BASE$DASHBOARD_DATA")
-                    .addHeader("Cookie", cookieHeader())
-                    .addHeader("Accept", "application/json")
-                    .build()
-                val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
-                if (!resp.isSuccessful) {
-                    withContext(Dispatchers.Main) { showError() }
-                    return@launch
-                }
-                val body = resp.body?.string() ?: ""
-                if (body.isBlank()) {
-                    Log.w(TAG, "dashboard/data empty body")
-                    withContext(Dispatchers.Main) { showError() }
-                    return@launch
-                }
-                val obj = try { JSONObject(body) } catch (e: Exception) {
-                    Log.e(TAG, "dashboard/data not JSON: ${body.take(200)}", e)
-                    withContext(Dispatchers.Main) { showError() }
-                    return@launch
-                }
-                if (!obj.optBoolean("success", false)) {
-                    withContext(Dispatchers.Main) { showError() }
-                    return@launch
-                }
-                val profile = obj.optBoolean("profile", false)
-                val isApproved = obj.optBoolean("is_approved", false)
-                val hasPendingApp = obj.optBoolean("has_pending_app", false)
-                val totalCommission = obj.optInt("total_commission", 0)
-                val pendingCommission = obj.optInt("pending_commission", 0)
-                val soldCount = obj.optInt("sold_count", 0)
-                val expiredCount = obj.optInt("expired_count", 0)
-                val landsArr = obj.optJSONArray("assigned_lands") ?: org.json.JSONArray()
-                val assigned = mutableListOf<JSONObject>()
-                for (i in 0 until landsArr.length()) {
-                    try {
-                        val item = landsArr.optJSONObject(i) ?: continue
-                        assigned.add(item)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "skip land item $i", e)
+                // اول تلاش برای داشبورد کامل (با یا بدون لاگین)
+                val mainResult = withContext(Dispatchers.IO) { fetchDashboardData() }
+                if (mainResult != null) {
+                    withContext(Dispatchers.Main) {
+                        if (_binding == null) return@withContext
+                        mainResult()
                     }
+                    return@launch
                 }
-                // برای مهمان: اگر فایل ارسالی نداشتیم، از لیست عمومی فایل‌ها استفاده می‌کنیم
-                val publicArr = obj.optJSONArray("public_lands") ?: org.json.JSONArray()
-                val publicLands = mutableListOf<JSONObject>()
-                for (i in 0 until publicArr.length()) {
-                    try {
-                        publicArr.optJSONObject(i)?.let { publicLands.add(it) }
-                    } catch (_: Exception) { }
-                }
-                val lands = if (assigned.isNotEmpty()) assigned else publicLands
-                Log.d(TAG, "dashboard/data assigned=${assigned.size} public=${publicLands.size} show=${lands.size}")
+                // در صورت خطا: بارگذاری فقط لیست عمومی فایل‌ها (بدون نیاز به کوکی)
+                val fallbackResult = withContext(Dispatchers.IO) { fetchPublicLands() }
                 withContext(Dispatchers.Main) {
                     if (_binding == null) return@withContext
-                    bind(
-                        profile = profile,
-                        isApproved = isApproved,
-                        hasPendingApp = hasPendingApp,
-                        totalCommission = totalCommission,
-                        pendingCommission = pendingCommission,
-                        soldCount = soldCount,
-                        expiredCount = expiredCount,
-                        lands = lands,
-                        isPublicList = assigned.isEmpty() && publicLands.isNotEmpty()
-                    )
+                    if (fallbackResult != null) {
+                        fallbackResult()
+                    } else {
+                        showError()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "loadData error", e)
-                withContext(Dispatchers.Main) { showError() }
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    tryFallbackThenShowError()
+                }
             }
+        }
+    }
+
+    /** در صورت خطا در loadData، یک‌بار fallback را روی Main صدا می‌زنیم. */
+    private fun tryFallbackThenShowError() {
+        scope.launch {
+            try {
+                val fallbackResult = withContext(Dispatchers.IO) { fetchPublicLands() }
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    if (fallbackResult != null) fallbackResult() else showError()
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) { if (_binding != null) showError() }
+            }
+        }
+    }
+
+    /**
+     * دریافت داده داشبورد. در صورت موفقیت یک lambda برای bind روی Main برمی‌گرداند، وگرنه null.
+     */
+    private fun fetchDashboardData(): (() -> Unit)? {
+        return try {
+            val req = Request.Builder()
+                .url("$BASE$DASHBOARD_DATA")
+                .addHeader("Cookie", cookieHeader())
+                .addHeader("Accept", "application/json")
+                .build()
+            val resp = client.newCall(req).execute()
+            if (!resp.isSuccessful) {
+                Log.w(TAG, "dashboard/data not successful: ${resp.code}")
+                return null
+            }
+            val body = resp.body?.string() ?: ""
+            if (body.isBlank()) {
+                Log.w(TAG, "dashboard/data empty body")
+                return null
+            }
+            val obj = try { JSONObject(body) } catch (e: Exception) {
+                Log.e(TAG, "dashboard/data not JSON: ${body.take(200)}", e)
+                return null
+            }
+            if (!obj.optBoolean("success", false)) {
+                Log.w(TAG, "dashboard/data success=false")
+                return null
+            }
+            val profile = obj.optBoolean("profile", false)
+            val isApproved = obj.optBoolean("is_approved", false)
+            val hasPendingApp = obj.optBoolean("has_pending_app", false)
+            val totalCommission = obj.optInt("total_commission", 0)
+            val pendingCommission = obj.optInt("pending_commission", 0)
+            val soldCount = obj.optInt("sold_count", 0)
+            val expiredCount = obj.optInt("expired_count", 0)
+            val landsArr = obj.optJSONArray("assigned_lands") ?: org.json.JSONArray()
+            val assigned = mutableListOf<JSONObject>()
+            for (i in 0 until landsArr.length()) {
+                try {
+                    landsArr.optJSONObject(i)?.let { assigned.add(it) }
+                } catch (_: Exception) { }
+            }
+            val publicArr = obj.optJSONArray("public_lands") ?: org.json.JSONArray()
+            val publicLands = mutableListOf<JSONObject>()
+            for (i in 0 until publicArr.length()) {
+                try {
+                    publicArr.optJSONObject(i)?.let { publicLands.add(it) }
+                } catch (_: Exception) { }
+            }
+            val lands = if (assigned.isNotEmpty()) assigned else publicLands
+            val isPublicList = assigned.isEmpty() && publicLands.isNotEmpty()
+            Log.d(TAG, "dashboard/data assigned=${assigned.size} public=${publicLands.size} show=${lands.size}")
+            {
+                binding.dashboardProgress.visibility = View.GONE
+                bind(
+                    profile = profile,
+                    isApproved = isApproved,
+                    hasPendingApp = hasPendingApp,
+                    totalCommission = totalCommission,
+                    pendingCommission = pendingCommission,
+                    soldCount = soldCount,
+                    expiredCount = expiredCount,
+                    lands = lands,
+                    isPublicList = isPublicList
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchDashboardData error", e)
+            null
+        }
+    }
+
+    /**
+     * دریافت فقط لیست عمومی فایل‌ها (بدون کوکی). در صورت موفقیت lambda برای bind برمی‌گرداند.
+     */
+    private fun fetchPublicLands(): (() -> Unit)? {
+        return try {
+            val req = Request.Builder()
+                .url("$BASE$PUBLIC_LANDS")
+                .addHeader("Accept", "application/json")
+                .build()
+            val resp = client.newCall(req).execute()
+            if (!resp.isSuccessful) return null
+            val body = resp.body?.string() ?: ""
+            if (body.isBlank()) return null
+            val obj = try { JSONObject(body) } catch (_: Exception) { return null }
+            if (!obj.optBoolean("success", false)) return null
+            val publicArr = obj.optJSONArray("public_lands") ?: org.json.JSONArray()
+            val publicLands = mutableListOf<JSONObject>()
+            for (i in 0 until publicArr.length()) {
+                try {
+                    publicArr.optJSONObject(i)?.let { publicLands.add(it) }
+                } catch (_: Exception) { }
+            }
+            Log.d(TAG, "public-lands count=${publicLands.size}")
+            {
+                binding.dashboardProgress.visibility = View.GONE
+                bind(
+                    profile = false,
+                    isApproved = false,
+                    hasPendingApp = false,
+                    totalCommission = 0,
+                    pendingCommission = 0,
+                    soldCount = 0,
+                    expiredCount = 0,
+                    lands = publicLands,
+                    isPublicList = true
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchPublicLands error", e)
+            null
         }
     }
 
