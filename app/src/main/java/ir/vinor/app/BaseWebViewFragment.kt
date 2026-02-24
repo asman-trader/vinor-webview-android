@@ -148,11 +148,11 @@ abstract class BaseWebViewFragment : Fragment() {
                 canGoBack = view?.canGoBack() == true
                 Log.d(fragmentTag, "Page finished: $url")
                 
-                // مخفی کردن منوی فوتر سایت در اپلیکیشن
-                // در صفحات جزئیات فایل (همکاران و عمومی) فوتر باید مخفی باشد
+                // مخفی کردن منوی فوتر سایت در اپلیکیشن (از جمله صفحه جزئیات فایل)
                 val urlStr = url ?: ""
-                val isDetailPage = urlStr.contains("/express/partner/land/") || 
-                                   (urlStr.contains("/express/") && 
+                val isDetailPage = urlStr.contains("/express/partner/lands/") ||
+                                   urlStr.contains("/express/partner/land/") ||
+                                   (urlStr.contains("/express/") &&
                                     !urlStr.contains("/express/partner/dashboard") &&
                                     !urlStr.contains("/express/partner/explore") &&
                                     !urlStr.contains("/express/partner/profile") &&
@@ -160,19 +160,14 @@ abstract class BaseWebViewFragment : Fragment() {
                                     !urlStr.contains("/express/partner/routine") &&
                                     !urlStr.contains("/express/partner/login") &&
                                     !urlStr.contains("/express/partner/apply") &&
-                                    (urlStr.contains("/express/partner/land/") || 
-                                     urlStr.matches(Regex(".*/express/[^/]+$"))))
-                
+                                    (urlStr.contains("/express/partner/land") || urlStr.matches(Regex(".*/express/[^/]+$"))))
+
+                hideFooterMenu()
                 if (isDetailPage) {
-                    // در صفحات جزئیات فایل، فوتر را حتماً مخفی کن
-                    hideFooterMenu()
-                    // اجرای مجدد بعد از کمی تاخیر برای اطمینان
+                    view?.postDelayed({ hideFooterMenu() }, 300)
                     view?.postDelayed({ hideFooterMenu() }, 500)
                     view?.postDelayed({ hideFooterMenu() }, 1000)
                     view?.postDelayed({ hideFooterMenu() }, 2000)
-                } else {
-                    // در سایر صفحات هم فوتر را مخفی کن
-                    hideFooterMenu()
                 }
                 
                 // هدرهای وب نمایش داده می‌شوند (دقیقاً مانند سایت)
@@ -342,8 +337,11 @@ abstract class BaseWebViewFragment : Fragment() {
                     '#bottomNavMenu',                    // منوی اصلی فوتر
                     'nav#bottomNavMenu',                // nav با ID bottomNavMenu
                     'nav[id="bottomNavMenu"]',          // nav با ID bottomNavMenu (exact)
-                    '.fixed.inset-x-0.bottom-0',        // کلاس‌های منوی فوتر
+                    '.fixed.inset-x-0.bottom-0',        // منوی فوتر و نوار پایین صفحه جزئیات
+                    '.fixed.bottom-0.inset-x-0',        // نوار پایین (ترتیب دیگر کلاس)
                     'nav.fixed.inset-x-0.bottom-0',     // nav با کلاس‌های منوی فوتر
+                    'div.fixed.inset-x-0.bottom-0',     // div نوار پایین (صفحه جزئیات فایل)
+                    'div.fixed.bottom-0.inset-x-0',
                     '[id*="bottomNav"]',                // هر element با ID شامل bottomNav
                     '[class*="bottom-nav"]',            // هر element با کلاس شامل bottom-nav
                     '[class*="bottomNav"]',              // هر element با کلاس شامل bottomNav
@@ -372,14 +370,15 @@ abstract class BaseWebViewFragment : Fragment() {
                             var elements = document.querySelectorAll(selector);
                             elements.forEach(function(el) {
                                 if (el) {
-                                    // چک کردن که آیا element واقعاً منوی فوتر است
+                                    // چک کردن که آیا element منوی فوتر یا نوار پایین صفحه است (از جمله صفحه جزئیات فایل)
                                     var isFooterNav = el.id === 'bottomNavMenu' || 
                                                      el.classList.contains('bottom-nav') ||
                                                      el.classList.contains('bottomNavMenu') ||
                                                      (el.tagName === 'NAV' && el.classList.contains('fixed') && el.classList.contains('bottom-0')) ||
+                                                     (el.classList.contains('fixed') && el.classList.contains('bottom-0')) ||
                                                      el.getAttribute('data-tour') === 'bottom-nav';
                                     
-                                    if (isFooterNav || selector.includes('bottomNav') || selector.includes('bottom-nav')) {
+                                    if (isFooterNav || selector.includes('bottomNav') || selector.includes('bottom-nav') || selector.includes('fixed')) {
                                         el.style.display = 'none';
                                         el.style.visibility = 'hidden';
                                         el.style.height = '0';
