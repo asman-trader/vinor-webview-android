@@ -18,7 +18,7 @@ class DashboardFragment : BaseWebViewFragment() {
 
     /** تغییر آدرس از منو اعمال نشود؛ همیشه داشبورد بماند. */
     override fun reloadWithUrl(url: String) {
-        if (::webView.isInitialized && isAdded) {
+        if (isWebViewInitialized() && isAdded) {
             webView.loadUrl(targetUrl)
         }
     }

@@ -245,6 +245,9 @@ abstract class BaseWebViewFragment : Fragment() {
      */
     protected open fun shouldOverrideUrlLoadingForFragment(url: String): Boolean? = null
 
+    /** برای استفاده در فرزندان: آیا WebView مقداردهی شده است. */
+    protected fun isWebViewInitialized(): Boolean = ::webView.isInitialized
+
     /**
      * بارگذاری مجدد با URL جدید (برای تغییر داینامیک منو)
      * open است تا بتوان در Fragmentهای فرزند override کرد
