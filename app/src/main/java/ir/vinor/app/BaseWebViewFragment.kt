@@ -95,6 +95,19 @@ abstract class BaseWebViewFragment : Fragment() {
             ): Boolean {
                 val url = request?.url?.toString() ?: return false
 
+                // امکان محدود کردن تب به یک URL (مثلاً فقط صفحه وینور)
+                shouldOverrideUrlLoadingForFragment(url)?.let { override ->
+                    if (override) {
+                        try {
+                            startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                        } catch (e: Exception) {
+                            Log.e(fragmentTag, "Error opening link: $url", e)
+                        }
+                        return true
+                    }
+                    return false
+                }
+
                 // اگر لینک دانلود APK است، با مرورگر/مدیر دانلود سیستم باز شود
                 try {
                     if (url.lowercase().endsWith(".apk")) {
@@ -208,19 +221,30 @@ abstract class BaseWebViewFragment : Fragment() {
         }
     }
 
+    /**
+     * آدرس نهایی برای بارگذاری. در فرزندان (مثل Dashboard) می‌توان همیشه فقط targetUrl را برگرداند.
+     */
+    protected open fun getUrlToLoad(): String = dynamicUrl ?: targetUrl
+
     private fun loadUrl() {
         if (!isOnline()) {
             showOffline()
             return
         }
         hideOffline()
-        val urlToLoad = dynamicUrl ?: targetUrl
+        val urlToLoad = getUrlToLoad()
         Log.d(fragmentTag, "Loading URL: $urlToLoad")
         if (::webView.isInitialized) {
             webView.loadUrl(urlToLoad)
         }
     }
     
+    /**
+     * امکان کنترل بارگذاری لینک در همین WebView یا باز کردن در مرورگر.
+     * @return true = در مرورگر باز شود، false = در WebView لود شود، null = رفتار پیش‌فرض
+     */
+    protected open fun shouldOverrideUrlLoadingForFragment(url: String): Boolean? = null
+
     /**
      * بارگذاری مجدد با URL جدید (برای تغییر داینامیک منو)
      * open است تا بتوان در Fragmentهای فرزند override کرد
