@@ -118,20 +118,9 @@ abstract class BaseWebViewFragment : Fragment() {
                 } catch (e: Exception) {
                     Log.e(fragmentTag, "Error opening APK link: $url", e)
                 }
-                
-                // DeepLink: لینک‌های vinor.ir داخل WebView باز شود
-                if (url.contains("vinor.ir")) {
-                    return false // اجازه بارگذاری در WebView
-                }
-                
-                // لینک‌های خارجی با مرورگر سیستم باز شود
-                try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Log.e(fragmentTag, "Error opening external link: $url", e)
-                }
-                return true
+
+                // در همهٔ موارد (به‌جز APK)، لینک‌ها داخل همین WebView لود شوند
+                return false
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {

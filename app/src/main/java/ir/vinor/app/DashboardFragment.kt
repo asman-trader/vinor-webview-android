@@ -13,22 +13,9 @@ class DashboardFragment : BaseWebViewFragment() {
     /** همیشه فقط همین صفحه وینور لود شود (بدون جایگزینی با منو). */
     override fun getUrlToLoad(): String = targetUrl
 
-    /**
-     * اجازه بده:
-     * - خود داشبورد
-     * - صفحه جزئیات فایل همکاران: /express/partner/lands/<code>
-     * داخل همان WebView لود شوند؛ بقیه لینک‌ها در مرورگر باز می‌شوند.
-     */
-    override fun shouldOverrideUrlLoadingForFragment(url: String): Boolean? {
-        val isDashboard = url.startsWith("https://vinor.ir/express/partner/dashboard")
-        val isPartnerLandDetail = url.startsWith("https://vinor.ir/express/partner/lands/")
-
-        // این دو نوع صفحه داخل خود اپ (WebView) باز شوند
-        if (isDashboard || isPartnerLandDetail) return null
-
-        // بقیه لینک‌ها در مرورگر سیستم باز شوند
-        return true
-    }
+    // از این به بعد، منطق عمومی BaseWebViewFragment برای همه لینک‌ها (داخلی و خارجی)
+    // استفاده می‌شود و همه داخل همین WebView باز می‌شوند؛ بنابراین این متد نیازی
+    // به override اختصاصی ندارد و به مقدار پیش‌فرض (null) بسنده می‌کنیم.
 
     /** تغییر آدرس از منو اعمال نشود؛ همیشه داشبورد بماند. */
     override fun reloadWithUrl(url: String) {
