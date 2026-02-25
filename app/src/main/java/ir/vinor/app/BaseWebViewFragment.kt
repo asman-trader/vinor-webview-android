@@ -129,6 +129,14 @@ abstract class BaseWebViewFragment : Fragment() {
                 hideOffline()
                 canGoBack = view?.canGoBack() == true
                 Log.d(fragmentTag, "Page started: $url")
+
+                // برای جلوگیری از دیده شدن لحظه‌ای فوتر وب در داشبورد و صفحه آموزش
+                // اسکریپت مخفی‌سازی را از همین ابتدا اجرا کن
+                val urlStr = url ?: ""
+                if (urlStr.contains("/express/partner/dashboard") ||
+                    urlStr.contains("/express/partner/training")) {
+                    hideFooterMenu()
+                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
