@@ -148,14 +148,18 @@ abstract class BaseWebViewFragment : Fragment() {
                 canGoBack = view?.canGoBack() == true
                 Log.d(fragmentTag, "Page finished: $url")
 
-                // فقط منوی BottomNavigation نیتیو در جزئیات فایل پنهان شود
-                // بقیهٔ جزئیات صفحه (از جمله فوتر وب) نمایش داده شوند.
                 val urlStr = url ?: ""
                 val isFileDetail =
                     urlStr.contains("/express/partner/lands/") ||
                     urlStr.contains("/express/partner/land/")
 
+                // فقط BottomNavigation نیتیو در صفحهٔ جزئیات فایل پنهان شود
                 (activity as? MainActivity)?.setBottomNavVisible(!isFileDetail)
+
+                // در داشبورد وینور، منوی فوتر وب (bottomNavMenu) مخفی شود
+                if (urlStr.contains("/express/partner/dashboard")) {
+                    hideFooterMenu()
+                }
 
                 // فعال کردن تم تاریک در صفحه وب
                 enableDarkMode()
