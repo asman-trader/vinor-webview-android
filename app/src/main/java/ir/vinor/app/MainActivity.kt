@@ -207,6 +207,11 @@ class MainActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, callback)
     }
 
+    /** نمایش/عدم‌نمایش منوی Bottom Navigation نیتیو (مثلاً در صفحه جزئیات فایل). */
+    fun setBottomNavVisible(visible: Boolean) {
+        binding.bottomNavigation.visibility = if (visible) android.view.View.VISIBLE else android.view.View.GONE
+    }
+
     private fun handleExitConfirmation() {
         val currentTime = System.currentTimeMillis()
         

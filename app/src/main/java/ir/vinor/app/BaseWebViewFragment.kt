@@ -147,32 +147,16 @@ abstract class BaseWebViewFragment : Fragment() {
                 hideLoader()
                 canGoBack = view?.canGoBack() == true
                 Log.d(fragmentTag, "Page finished: $url")
-                
-                // مخفی کردن منوی فوتر سایت در اپلیکیشن (از جمله صفحه جزئیات فایل)
-                val urlStr = url ?: ""
-                val isDetailPage = urlStr.contains("/express/partner/lands/") ||
-                                   urlStr.contains("/express/partner/land/") ||
-                                   (urlStr.contains("/express/") &&
-                                    !urlStr.contains("/express/partner/dashboard") &&
-                                    !urlStr.contains("/express/partner/explore") &&
-                                    !urlStr.contains("/express/partner/profile") &&
-                                    !urlStr.contains("/express/partner/commissions") &&
-                                    !urlStr.contains("/express/partner/routine") &&
-                                    !urlStr.contains("/express/partner/login") &&
-                                    !urlStr.contains("/express/partner/apply") &&
-                                    (urlStr.contains("/express/partner/land") || urlStr.matches(Regex(".*/express/[^/]+$"))))
 
-                hideFooterMenu()
-                if (isDetailPage) {
-                    view?.postDelayed({ hideFooterMenu() }, 300)
-                    view?.postDelayed({ hideFooterMenu() }, 500)
-                    view?.postDelayed({ hideFooterMenu() }, 1000)
-                    view?.postDelayed({ hideFooterMenu() }, 2000)
-                }
-                
-                // هدرهای وب نمایش داده می‌شوند (دقیقاً مانند سایت)
-                // هیچ تغییری در هدرها اعمال نمی‌شود
-                
+                // فقط منوی BottomNavigation نیتیو در جزئیات فایل پنهان شود
+                // بقیهٔ جزئیات صفحه (از جمله فوتر وب) نمایش داده شوند.
+                val urlStr = url ?: ""
+                val isFileDetail =
+                    urlStr.contains("/express/partner/lands/") ||
+                    urlStr.contains("/express/partner/land/")
+
+                (activity as? MainActivity)?.setBottomNavVisible(!isFileDetail)
+
                 // فعال کردن تم تاریک در صفحه وب
                 enableDarkMode()
             }
