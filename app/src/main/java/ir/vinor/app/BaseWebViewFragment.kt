@@ -145,8 +145,9 @@ abstract class BaseWebViewFragment : Fragment() {
                 // فقط BottomNavigation نیتیو در صفحهٔ جزئیات فایل پنهان شود
                 (activity as? MainActivity)?.setBottomNavVisible(!isFileDetail)
 
-                // در داشبورد وینور، منوی فوتر وب (bottomNavMenu) مخفی شود
-                if (urlStr.contains("/express/partner/dashboard")) {
+                // در داشبورد و صفحه آموزش ۳ مرحله‌ای، منوی فوتر وب (bottomNavMenu) مخفی شود
+                if (urlStr.contains("/express/partner/dashboard") ||
+                    urlStr.contains("/express/partner/training")) {
                     hideFooterMenu()
                 }
 
