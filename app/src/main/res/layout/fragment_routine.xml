@@ -13,6 +13,29 @@
         android:padding="16dp"
         android:layoutDirection="rtl">
 
+        <!-- هدر صفحه روتین (مشابه وب: عنوان ثابت بالا) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="روتین و آمار فعالیت"
+                android:textColor="#F9FAFB"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <!-- جای خالی برای آیکن‌های احتمالی آینده (اعلان‌ها و ...) -->
+            <View
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
+        </LinearLayout>
+
         <!-- پیشرفت امروز -->
         <FrameLayout
             android:layout_width="match_parent"
