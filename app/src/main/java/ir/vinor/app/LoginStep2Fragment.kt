@@ -38,7 +38,6 @@ class LoginStep2Fragment : Fragment() {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
-        .followRedirects(false)
         .build()
 
     companion object {
