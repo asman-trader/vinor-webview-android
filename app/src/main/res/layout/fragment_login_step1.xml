@@ -26,22 +26,37 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="ورود به حساب"
+            android:text="ورود"
             android:textColor="#F9FAFB"
-            android:textSize="22sp"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="ورود به پنل همکار اکسپرس"
+            android:textColor="#F9FAFB"
+            android:textSize="18sp"
             android:textStyle="bold" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="شماره موبایل خود را وارد کنید تا کد تأیید ارسال شود."
+            android:text="شماره موبایل خود را وارد کنید"
             android:textColor="#9CA3AF"
             android:textSize="14sp" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="شماره موبایل"
+            android:textColor="#D1D5DB"
+            android:textSize="14sp" />
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="8dp"
             android:background="@drawable/bg_routine_card"
             android:padding="16dp">
             <EditText
@@ -49,13 +64,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:background="@null"
-                android:hint="۰۹۱۲۳۴۵۶۷۸۹"
+                android:hint="09123456789"
                 android:inputType="phone"
                 android:imeOptions="actionNext"
                 android:maxLength="11"
                 android:textColor="#F9FAFB"
                 android:textColorHint="#6B7280"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:textDirection="ltr" />
         </FrameLayout>
 
         <TextView
@@ -84,7 +100,7 @@
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:text="دریافت کد تأیید"
+            android:text="ادامه"
             android:textColor="#F9FAFB"
             android:textSize="15sp"
             android:textStyle="bold" />

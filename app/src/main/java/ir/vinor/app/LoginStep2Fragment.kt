@@ -22,6 +22,8 @@ import org.json.JSONObject
 import android.webkit.CookieManager
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
+import android.os.Handler
+import android.os.Looper
 
 /**
  * ورود نیتیو - مرحله ۲: وارد کردن کد OTP و تأیید.
@@ -43,6 +45,8 @@ class LoginStep2Fragment : Fragment() {
         private const val BASE = "https://vinor.ir"
         private const val API_VERIFY = "/express/partner/api/verify"
         private const val API_LOGIN_REQUEST = "/express/partner/api/login-request"
+        private const val API_OTP_RESEND = "/express/partner/otp/resend"
+        private const val RESEND_COOLDOWN_SEC = 60
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -57,10 +61,12 @@ class LoginStep2Fragment : Fragment() {
             findNavController().navigateUp()
             return
         }
-        binding.loginStep2PhoneLabel.text = "کد ارسال‌شده به $phone را وارد کنید."
+        binding.loginStep2PhoneLabel.text = "کد ۵ رقمی ارسال‌شده به $phone را وارد کنید"
+        startResendCountdown()
 
         binding.loginStep2Back.setOnClickListener { findNavController().navigateUp() }
         binding.loginStep2Submit.setOnClickListener { submitCode(phone) }
+        binding.loginStep2Resend.isEnabled = false
         binding.loginStep2Resend.setOnClickListener { resendCode(phone) }
         binding.loginStep2Code.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE ||
@@ -72,6 +78,8 @@ class LoginStep2Fragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        resendCountdownJob?.let { handler.removeCallbacks(it) }
+        resendCountdownJob = null
         job.cancel()
         super.onDestroyView()
         _binding = null
@@ -80,10 +88,11 @@ class LoginStep2Fragment : Fragment() {
     private fun cookieHeader(): String = CookieManager.getInstance().getCookie(BASE) ?: ""
 
     private fun submitCode(phone: String) {
-        val code = binding.loginStep2Code.text?.toString()?.trim() ?: ""
+        val raw = binding.loginStep2Code.text?.toString()?.trim() ?: ""
+        val code = raw.filter { it.isDigit() }.take(5)
         binding.loginStep2Error.visibility = View.GONE
         if (code.length < 5) {
-            binding.loginStep2Error.text = "کد تأیید را وارد کنید."
+            binding.loginStep2Error.text = "لطفاً کد ۵ رقمی را کامل وارد کنید."
             binding.loginStep2Error.visibility = View.VISIBLE
             return
         }
@@ -121,7 +130,7 @@ class LoginStep2Fragment : Fragment() {
                             nav.popBackStack()
                         }
                     } else {
-                        binding.loginStep2Error.text = obj?.optString("error", "کد نادرست است.")
+                        binding.loginStep2Error.text = obj?.optString("error", "کد تأیید نادرست است.")
                         binding.loginStep2Error.visibility = View.VISIBLE
                     }
                 }
@@ -139,6 +148,28 @@ class LoginStep2Fragment : Fragment() {
         }
     }
 
+    private val handler = Handler(Looper.getMainLooper())
+    private var resendCountdownJob: Runnable? = null
+
+    private fun startResendCountdown() {
+        resendCountdownJob?.let { handler.removeCallbacks(it) }
+        binding.loginStep2Resend.isEnabled = false
+        var secLeft = RESEND_COOLDOWN_SEC
+        fun updateUi() {
+            if (_binding == null) return
+            if (secLeft <= 0) {
+                binding.loginStep2Timer.text = "هنوز کد را دریافت نکردید؟"
+                binding.loginStep2Resend.isEnabled = true
+                return
+            }
+            binding.loginStep2Timer.text = "ارسال مجدد کد تا %d ثانیه دیگر".format(secLeft)
+            secLeft--
+            resendCountdownJob = Runnable { updateUi() }
+            handler.postDelayed(resendCountdownJob!!, 1000L)
+        }
+        updateUi()
+    }
+
     private var resendCooldownUntil = 0L
     private fun resendCode(phone: String) {
         if (phone.length != 11) return
@@ -146,38 +177,42 @@ class LoginStep2Fragment : Fragment() {
         if (now < resendCooldownUntil) {
             val sec = ((resendCooldownUntil - now) / 1000).toInt()
             if (_binding != null && isAdded) {
-                Toast.makeText(requireContext(), "لطفاً ${sec} ثانیه صبر کنید.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "لطفاً %d ثانیه صبر کنید.".format(sec), Toast.LENGTH_SHORT).show()
             }
             return
         }
         binding.loginStep2Error.visibility = View.GONE
         binding.loginStep2Resend.isEnabled = false
-        resendCooldownUntil = now + 60_000
+        resendCooldownUntil = now + RESEND_COOLDOWN_SEC * 1000L
         scope.launch {
             try {
                 val json = JSONObject().put("phone", phone).toString()
                 val req = Request.Builder()
-                    .url("$BASE$API_LOGIN_REQUEST")
+                    .url("$BASE$API_OTP_RESEND")
                     .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
                     .addHeader("Accept", "application/json")
+                    .addHeader("Content-Type", "application/json")
                     .addHeader("Cookie", cookieHeader())
                     .build()
                 val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
                 saveCookiesFromResponse(resp)
                 val body = resp.body?.string() ?: ""
-                val success = (try { JSONObject(body) } catch (_: Exception) { null })?.optBoolean("success", false) == true
+                val obj = try { JSONObject(body) } catch (_: Exception) { null }
+                val ok = obj?.optBoolean("ok", false) == true
+                val msg = obj?.optString("message", null) ?: obj?.optString("error", if (ok) "کد تأیید مجدد ارسال شد." else "خطا در ارسال مجدد.")
                 withContext(Dispatchers.Main) {
                     if (_binding != null && isAdded) {
-                        Toast.makeText(requireContext(), if (success) "کد مجدد ارسال شد." else "خطا در ارسال مجدد.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
                     }
-                }
-                delay(60_000)
-                withContext(Dispatchers.Main) {
-                    if (_binding != null) binding.loginStep2Resend.isEnabled = true
+                    if (_binding != null && ok) startResendCountdown()
+                    else if (_binding != null) binding.loginStep2Resend.isEnabled = true
                 }
             } catch (_: Exception) {
                 withContext(Dispatchers.Main) {
-                    if (_binding != null) binding.loginStep2Resend.isEnabled = true
+                    if (_binding != null) {
+                        binding.loginStep2Resend.isEnabled = true
+                        if (isAdded) Toast.makeText(requireContext(), "خطا در ارتباط. دوباره تلاش کنید.", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }

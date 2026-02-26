@@ -67,11 +67,15 @@ class LoginStep1Fragment : Fragment() {
         _binding = null
     }
 
+    /**
+     * نرمال‌سازی مطابق بک‌اند (notifications._normalize_user_id / _normalize_phone):
+     * خروجی همیشه ۱۱ رقم به صورت 09xxxxxxxxx
+     */
     private fun normalizePhone(input: String): String {
         val digits = input.filter { it.isDigit() }
         return when {
-            digits.startsWith("0098") && digits.length >= 13 -> "0" + digits.drop(4).take(9)
-            digits.startsWith("98") && digits.length >= 11 -> "0" + digits.drop(2).take(9)
+            digits.startsWith("0098") && digits.length >= 14 -> "0" + digits.drop(4).take(10)
+            digits.startsWith("98") && digits.length >= 12 -> "0" + digits.drop(2).take(10)
             digits.length == 11 && digits.startsWith("0") -> digits
             digits.length == 10 && digits.startsWith("9") -> "0$digits"
             else -> digits.take(11)
@@ -83,7 +87,7 @@ class LoginStep1Fragment : Fragment() {
         val phone = normalizePhone(raw)
         binding.loginStep1Error.visibility = View.GONE
         if (phone.length != 11 || !phone.startsWith("09")) {
-            binding.loginStep1Error.text = "شماره موبایل معتبر (۰۹xxxxxxxxx) وارد کنید."
+            binding.loginStep1Error.text = "لطفاً یک شماره موبایل ۱۱ رقمی معتبر وارد کنید."
             binding.loginStep1Error.visibility = View.VISIBLE
             return
         }
@@ -110,13 +114,13 @@ class LoginStep1Fragment : Fragment() {
                     binding.loginStep1Submit.isEnabled = true
                     if (_binding == null) return@withContext
                     if (success) {
-                        if (isAdded) Toast.makeText(requireContext(), "کد تأیید ارسال شد.", Toast.LENGTH_SHORT).show()
+                        if (isAdded) Toast.makeText(requireContext(), obj?.optString("message", "کد تأیید ارسال شد."), Toast.LENGTH_SHORT).show()
                         findNavController().navigate(
                             R.id.loginStep2Fragment,
                             android.os.Bundle().apply { putString("phone", phone) }
                         )
                     } else {
-                        binding.loginStep1Error.text = obj?.optString("error", "خطا در ارسال کد.")
+                        binding.loginStep1Error.text = obj?.optString("error", "شماره موبایل معتبر نیست.")
                         binding.loginStep1Error.visibility = View.VISIBLE
                     }
                 }
