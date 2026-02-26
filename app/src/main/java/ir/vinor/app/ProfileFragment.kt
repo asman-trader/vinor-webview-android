@@ -134,8 +134,13 @@ class ProfileFragment : Fragment() {
         binding.profileLinks.visibility = View.GONE
         binding.profileNotifications.visibility = View.GONE
         binding.profileGuestLogin.setOnClickListener {
-            // استفاده از صفحات وب (WebView/مرورگر) برای ورود، مانند داشبورد
-            openUrl("$BASE/express/partner/login?next=$BASE/express/partner/profile")
+            // استفاده از WebView داخلی اپ برای ورود
+            try {
+                findNavController().navigate(R.id.action_profile_to_login)
+            } catch (_: Exception) {
+                // در صورت بروز خطا در ناوبری، از مرورگر خارجی استفاده می‌کنیم
+                openUrl("$BASE/express/partner/login?next=$BASE/express/partner/profile")
+            }
         }
         binding.profileGuestApply.setOnClickListener { openUrl("$BASE/express/partner/apply/step1") }
     }
