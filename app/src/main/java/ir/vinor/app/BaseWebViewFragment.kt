@@ -134,7 +134,9 @@ abstract class BaseWebViewFragment : Fragment() {
                 // اسکریپت مخفی‌سازی را از همین ابتدا اجرا کن
                 val urlStr = url ?: ""
                 if (urlStr.contains("/express/partner/dashboard") ||
-                    urlStr.contains("/express/partner/training")) {
+                    urlStr.contains("/express/partner/training") ||
+                    urlStr.contains("/express/partner/login") ||
+                    urlStr.contains("/express/partner/verify")) {
                     hideFooterMenu()
                 }
             }
@@ -153,9 +155,11 @@ abstract class BaseWebViewFragment : Fragment() {
                 // فقط BottomNavigation نیتیو در صفحهٔ جزئیات فایل پنهان شود
                 (activity as? MainActivity)?.setBottomNavVisible(!isFileDetail)
 
-                // در داشبورد و صفحه آموزش ۳ مرحله‌ای، منوی فوتر وب (bottomNavMenu) مخفی شود
+                // در داشبورد، صفحه آموزش و صفحات ورود، منوی فوتر وب (bottomNavMenu) مخفی شود
                 if (urlStr.contains("/express/partner/dashboard") ||
-                    urlStr.contains("/express/partner/training")) {
+                    urlStr.contains("/express/partner/training") ||
+                    urlStr.contains("/express/partner/login") ||
+                    urlStr.contains("/express/partner/verify")) {
                     hideFooterMenu()
                 }
 
