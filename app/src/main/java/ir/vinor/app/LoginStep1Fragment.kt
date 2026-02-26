@@ -35,6 +35,7 @@ class LoginStep1Fragment : Fragment() {
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
+        .followRedirects(false)
         .build()
 
     companion object {
@@ -156,10 +157,12 @@ class LoginStep1Fragment : Fragment() {
 
     private fun saveCookiesFromResponse(resp: okhttp3.Response) {
         try {
-            resp.headers("Set-Cookie").forEach { value ->
+            val setCookies = resp.headers("Set-Cookie")
+            setCookies.forEach { value ->
                 CookieManager.getInstance().setCookie(BASE, value)
             }
             CookieManager.getInstance().flush()
+            if (setCookies.isEmpty()) Log.w(TAG, "login-request: no Set-Cookie in response")
         } catch (_: Exception) { }
     }
 }

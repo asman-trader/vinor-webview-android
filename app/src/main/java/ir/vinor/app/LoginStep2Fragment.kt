@@ -38,6 +38,7 @@ class LoginStep2Fragment : Fragment() {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
+        .followRedirects(false)
         .build()
 
     companion object {
@@ -96,6 +97,13 @@ class LoginStep2Fragment : Fragment() {
             binding.loginStep2Error.visibility = View.VISIBLE
             return
         }
+        val cookie = cookieHeader()
+        if (cookie.isBlank()) {
+            binding.loginStep2Error.text = "نشست منقضی شده. لطفاً به مرحله قبل برگردید و دوباره درخواست کد دهید."
+            binding.loginStep2Error.visibility = View.VISIBLE
+            Log.w(TAG, "verify: no session cookie")
+            return
+        }
 
         binding.loginStep2Progress.visibility = View.VISIBLE
         binding.loginStep2Submit.isEnabled = false
@@ -107,7 +115,8 @@ class LoginStep2Fragment : Fragment() {
                     .url("$BASE$API_VERIFY")
                     .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
                     .addHeader("Accept", "application/json")
-                    .addHeader("Cookie", cookieHeader())
+                    .addHeader("Content-Type", "application/json; charset=utf-8")
+                    .addHeader("Cookie", cookie)
                     .build()
                 val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
                 saveCookiesFromResponse(resp)
