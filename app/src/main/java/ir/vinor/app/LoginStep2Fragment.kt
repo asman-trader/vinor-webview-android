@@ -43,8 +43,7 @@ class LoginStep2Fragment : Fragment() {
 
     companion object {
         private const val TAG = "LoginStep2"
-        // همان BASE مرحله اول: سرور فلask روی امولاتور
-        private const val BASE = "http://10.0.2.2:5000"
+        private const val BASE = "https://vinor.ir"
         private const val API_VERIFY = "/express/partner/api/verify"
         private const val API_LOGIN_REQUEST = "/express/partner/api/login-request"
         private const val API_OTP_RESEND = "/express/partner/otp/resend"

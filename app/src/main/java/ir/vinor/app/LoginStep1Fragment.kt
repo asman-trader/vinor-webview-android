@@ -40,8 +40,7 @@ class LoginStep1Fragment : Fragment() {
 
     companion object {
         private const val TAG = "LoginStep1"
-        // برای تست روی امولاتور اندروید، به سرور لوکال فلask روی پورت 5000 وصل می‌شویم
-        private const val BASE = "http://10.0.2.2:5000"
+        private const val BASE = "https://vinor.ir"
         private const val API_LOGIN_REQUEST = "/express/partner/api/login-request"
     }
 
