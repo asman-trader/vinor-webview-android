@@ -42,7 +42,7 @@ class ProfileFragment : Fragment() {
 
     companion object {
         private const val TAG = "ProfileFragment"
-        private const val BASE = "https://vinor.ir"
+        private const val BASE = "http://10.0.2.2:5000"
         private const val PROFILE_DATA = "/express/partner/profile/data"
         private const val API_LOGOUT = "/express/partner/api/logout"
     }

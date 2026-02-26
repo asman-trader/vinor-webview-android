@@ -49,7 +49,7 @@ class NotificationsFragment : Fragment() {
 
     companion object {
         private const val TAG = "NotificationsFragment"
-        private const val BASE = "https://vinor.ir"
+        private const val BASE = "http://10.0.2.2:5000"
         private const val API_LIST = "/express/partner/api/notifications"
         private const val API_MARK_ALL = "/express/partner/api/notifications/read-all"
         private const val API_MARK_ONE = "/express/partner/api/notifications/%s/read"

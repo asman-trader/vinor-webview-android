@@ -40,7 +40,7 @@ class CommissionsFragment : Fragment() {
 
     companion object {
         private const val TAG = "CommissionsFragment"
-        private const val BASE = "https://vinor.ir"
+        private const val BASE = "http://10.0.2.2:5000"
         private const val COMMISSIONS_DATA = "/express/partner/commissions/data"
     }
 

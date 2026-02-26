@@ -47,7 +47,7 @@ class NotesFragment : Fragment() {
 
     companion object {
         private const val TAG = "NotesFragment"
-        private const val BASE = "https://vinor.ir"
+        private const val BASE = "http://10.0.2.2:5000"
         private const val API_LIST = "/express/partner/api/notes"
         private const val API_ADD = "/express/partner/api/notes"
         private const val API_DELETE = "/express/partner/api/notes/%d/delete"

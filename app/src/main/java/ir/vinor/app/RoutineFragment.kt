@@ -73,7 +73,7 @@ class RoutineFragment : Fragment() {
 
     companion object {
         private const val TAG = "RoutineFragment"
-        private const val BASE = "https://vinor.ir"
+        private const val BASE = "http://10.0.2.2:5000"
         private const val ROUTINE_DATA = "/express/partner/routine/data"
         private const val ROUTINE_STEPS_DETAIL = "/express/partner/routine/steps/detail"
         private const val ROUTINE_STEPS = "/express/partner/routine/steps"

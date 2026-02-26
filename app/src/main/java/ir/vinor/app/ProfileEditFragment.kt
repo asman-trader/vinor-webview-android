@@ -43,7 +43,7 @@ class ProfileEditFragment : Fragment() {
 
     companion object {
         private const val TAG = "ProfileEditFragment"
-        private const val BASE = "https://vinor.ir"
+        private const val BASE = "http://10.0.2.2:5000"
         private const val PROFILE_EDIT_DATA = "/express/partner/profile/edit/data"
         private const val PROFILE_UPDATE = "/express/partner/api/profile/update"
     }
