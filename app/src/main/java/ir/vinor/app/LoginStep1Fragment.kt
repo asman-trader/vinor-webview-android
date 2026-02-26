@@ -33,8 +33,8 @@ class LoginStep1Fragment : Fragment() {
     private val job = Job()
     private val scope = CoroutineScope(Dispatchers.Main + job)
     private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
     companion object {
@@ -102,12 +102,18 @@ class LoginStep1Fragment : Fragment() {
                     .url("$BASE$API_LOGIN_REQUEST")
                     .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
                     .addHeader("Accept", "application/json")
+                    .addHeader("Content-Type", "application/json; charset=utf-8")
                     .build()
                 val resp = withContext(Dispatchers.IO) { client.newCall(req).execute() }
                 saveCookiesFromResponse(resp)
                 val body = resp.body?.string() ?: ""
+                val code = resp.code
                 val obj = try { JSONObject(body) } catch (_: Exception) { null }
-                val success = obj?.optBoolean("success", false) == true
+                val success = resp.isSuccessful && (obj?.optBoolean("success", false) == true)
+
+                if (!success && code != 200) {
+                    Log.w(TAG, "login-request failed: code=$code body=${body.take(300)}")
+                }
 
                 withContext(Dispatchers.Main) {
                     binding.loginStep1Progress.visibility = View.GONE
@@ -115,12 +121,22 @@ class LoginStep1Fragment : Fragment() {
                     if (_binding == null) return@withContext
                     if (success) {
                         if (isAdded) Toast.makeText(requireContext(), obj?.optString("message", "کد تأیید ارسال شد."), Toast.LENGTH_SHORT).show()
-                        findNavController().navigate(
-                            R.id.loginStep2Fragment,
-                            android.os.Bundle().apply { putString("phone", phone) }
-                        )
+                        val bundle = android.os.Bundle().apply { putString("phone", phone) }
+                        view?.post {
+                            if (!isAdded) return@post
+                            try {
+                                findNavController().navigate(R.id.action_loginStep1_to_loginStep2, bundle)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "navigate to step2 failed", e)
+                                try {
+                                    findNavController().navigate(R.id.loginStep2Fragment, bundle)
+                                } catch (e2: Exception) {
+                                    Log.e(TAG, "navigate by id also failed", e2)
+                                }
+                            }
+                        }
                     } else {
-                        binding.loginStep1Error.text = obj?.optString("error", "شماره موبایل معتبر نیست.")
+                        binding.loginStep1Error.text = obj?.optString("error", "خطا در ارتباط. دوباره تلاش کنید.")
                         binding.loginStep1Error.visibility = View.VISIBLE
                     }
                 }
